@@ -14,7 +14,8 @@ server {
     # Proxy CopyParty API requests
     location /api/fs/ {
         set $copyparty_backend ${COPYPARTY_URL};
-        proxy_pass $copyparty_backend/;
+        rewrite ^/api/fs/(.*) /$1 break;
+        proxy_pass $copyparty_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -25,7 +26,8 @@ server {
     # Proxy Companion API requests
     location /api/drives {
         set $companion_backend ${COMPANION_API_URL};
-        proxy_pass $companion_backend/api/drives;
+        rewrite ^/api/(.*) /api/$1 break;
+        proxy_pass $companion_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }

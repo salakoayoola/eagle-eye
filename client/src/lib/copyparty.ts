@@ -33,15 +33,11 @@ export interface CopyPartyListing {
 /** Fetch a directory listing from CopyParty */
 export async function listDirectory(path: string): Promise<CopyPartyListing> {
   const cleanPath = path.replace(/^\/+|\/+$/g, "");
-  const res = await fetch(`${BASE}/${cleanPath}?j`);
+  const res = await fetch(`${BASE}/${cleanPath}?ls`);
   if (!res.ok) {
     throw new Error(`Failed to list directory: ${res.status} ${res.statusText}`);
   }
   const data = await res.json();
-
-  // CopyParty returns an array of [name, ts, size, href] or similar format.
-  // The exact format depends on the CopyParty version.
-  // We normalize it here.
   return normalizeListing(data, cleanPath);
 }
 
@@ -49,53 +45,34 @@ function normalizeListing(data: any, path: string): CopyPartyListing {
   const dirs: CopyPartyEntry[] = [];
   const files: CopyPartyEntry[] = [];
 
-  // CopyParty ?j response format: { "dirs": [...], "files": [...] }
-  // Each entry is an array: [name, timestamp, size, ...extra]
-  // Or it may return a different format — we handle both.
+  // CopyParty ?ls response: { dirs: [{href, sz, ts, ext, lead}, ...], files: [...] }
+  // href for dirs includes trailing slash, e.g. "FolderName/"
 
   if (data.dirs) {
     for (const d of data.dirs) {
-      if (Array.isArray(d)) {
-        dirs.push({
-          name: d[0],
-          href: `${path}/${d[0]}`,
-          type: "d",
-          sz: 0,
-          ts: d[1] || 0,
-          num: d[2] || 0,
-        });
-      } else {
-        dirs.push({
-          name: d.name || d.href,
-          href: d.href ? `${path}/${d.href}` : `${path}/${d.name}`,
-          type: "d",
-          sz: 0,
-          ts: d.ts || d.dt || 0,
-          num: d.num || 0,
-        });
-      }
+      const rawHref = d.href || "";
+      const name = decodeURIComponent(rawHref.replace(/\/+$/, ""));
+      dirs.push({
+        name,
+        href: `${path}/${name}`,
+        type: "d",
+        sz: d.sz || 0,
+        ts: d.ts || 0,
+      });
     }
   }
 
   if (data.files) {
     for (const f of data.files) {
-      if (Array.isArray(f)) {
-        files.push({
-          name: f[0],
-          href: `${path}/${f[0]}`,
-          type: guessType(f[0]),
-          sz: f[2] || 0,
-          ts: f[1] || 0,
-        });
-      } else {
-        files.push({
-          name: f.name || f.href,
-          href: f.href ? `${path}/${f.href}` : `${path}/${f.name}`,
-          type: guessType(f.name || f.href || ""),
-          sz: f.sz || f.size || 0,
-          ts: f.ts || f.dt || 0,
-        });
-      }
+      const rawHref = f.href || "";
+      const name = decodeURIComponent(rawHref);
+      files.push({
+        name,
+        href: `${path}/${name}`,
+        type: guessType(name),
+        sz: f.sz || 0,
+        ts: f.ts || 0,
+      });
     }
   }
 

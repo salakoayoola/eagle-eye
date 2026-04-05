@@ -25,6 +25,8 @@ services:
     privileged: true
     volumes:
       - /dev:/dev:ro
+      - /sys:/sys:ro
+      - /run/udev:/run/udev:ro
       - ${MEDIA_MOUNT_DIR:-/mnt/media}:${MEDIA_MOUNT_DIR:-/mnt/media}:rshared
     profiles:
       - drives
