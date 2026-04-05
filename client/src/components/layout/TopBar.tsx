@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/hooks/use-theme";
-import { useDrives, useEjectDrive } from "@/hooks/use-drives";
+import { useDrives, useEjectDrive, useMountDrive } from "@/hooks/use-drives";
 import { DrivePill } from "@/components/drives/DrivePill";
 import { EjectDialog } from "@/components/drives/EjectDialog";
 import { Link } from "react-router";
@@ -20,10 +20,16 @@ export function TopBar() {
   const { theme, setTheme } = useTheme();
   const { data: drives } = useDrives();
   const ejectMutation = useEjectDrive();
+  const mountMutation = useMountDrive();
   const [ejectTarget, setEjectTarget] = useState<Drive | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const mountedDrives = drives?.filter((d) => d.mounted) || [];
+  // Show all detected external drives — mounted first, then unmounted
+  const allDrives = drives || [];
+  const sortedDrives = [
+    ...allDrives.filter((d) => d.mounted),
+    ...allDrives.filter((d) => !d.mounted),
+  ];
 
   return (
     <header className="flex h-12 shrink-0 items-center border-b bg-card px-4 gap-2">
@@ -39,20 +45,26 @@ export function TopBar() {
         <span>Eagle Eye</span>
       </Link>
 
-      {/* Center: Drive pills */}
+      {/* Center: Drive pills — mounted and unmounted */}
       <div className="flex flex-1 items-center justify-center gap-2 overflow-x-auto px-4">
-        {mountedDrives.map((drive) => (
+        {sortedDrives.map((drive) => (
           <DrivePill
             key={drive.device || drive.label}
             drive={drive}
             onEject={() => setEjectTarget(drive)}
+            onMount={() => mountMutation.mutate(drive.device)}
           />
         ))}
       </div>
 
       {/* Right actions */}
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSearchOpen(true)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setSearchOpen(true)}
+        >
           <Search className="h-4 w-4" />
         </Button>
 

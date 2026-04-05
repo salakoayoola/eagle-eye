@@ -21,7 +21,7 @@ A web-based file manager for personal NAS, powered by [CopyParty](https://github
 ## Quick Start
 
 ```bash
-git clone https://github.com/your-username/eagle-eye.git
+git clone https://github.com/salakoayoola/eagle-eye.git
 cd eagle-eye
 ./install.sh
 ```

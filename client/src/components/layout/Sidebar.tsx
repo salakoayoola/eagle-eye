@@ -1,9 +1,10 @@
-import { Folder, HardDrive, Usb } from "lucide-react";
+import { Folder, HardDrive, Usb, CircleDashed } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router";
-import { useDrives } from "@/hooks/use-drives";
+import { useDrives, useMountDrive } from "@/hooks/use-drives";
+import { formatDriveSize } from "@/lib/companion";
 
 interface SidebarItem {
   label: string;
@@ -15,8 +16,10 @@ export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: drives } = useDrives();
+  const mountMutation = useMountDrive();
 
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + "/");
 
   // Static locations
   const locations: SidebarItem[] = [
@@ -27,14 +30,15 @@ export function Sidebar() {
     },
   ];
 
-  // Dynamic drive locations from companion API
-  const driveLocations: SidebarItem[] = (drives || [])
-    .filter((d) => d.mounted)
-    .map((d) => ({
-      label: d.label,
-      path: `/browse/media/${d.label}`,
-      icon: <Usb className="h-4 w-4" />,
-    }));
+  // Mounted external drives
+  const mountedDrives = (drives || []).filter((d) => d.mounted);
+  const unmountedDrives = (drives || []).filter((d) => !d.mounted);
+
+  const driveLocations: SidebarItem[] = mountedDrives.map((d) => ({
+    label: d.label,
+    path: `/browse/media/${d.label}`,
+    icon: <Usb className="h-4 w-4" />,
+  }));
 
   // Favorites from localStorage
   const favorites: SidebarItem[] = (() => {
@@ -77,7 +81,7 @@ export function Sidebar() {
         <Separator className="my-2" />
 
         {/* Locations */}
-        <div>
+        <div className="mb-4">
           <h3 className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Locations
           </h3>
@@ -90,6 +94,40 @@ export function Sidebar() {
             />
           ))}
         </div>
+
+        {/* Unmounted external drives */}
+        {unmountedDrives.length > 0 && (
+          <>
+            <Separator className="my-2" />
+            <div>
+              <h3 className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Available Devices
+              </h3>
+              {unmountedDrives.map((drive) => (
+                <button
+                  key={drive.device}
+                  onClick={() => mountMutation.mutate(drive.device)}
+                  disabled={mountMutation.isPending}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                    "hover:bg-accent/10 text-muted-foreground"
+                  )}
+                >
+                  <CircleDashed className="h-4 w-4 text-warning" />
+                  <span className="truncate flex-1 text-left">
+                    {drive.label}
+                  </span>
+                  <span className="text-xs">
+                    {formatDriveSize(drive.size)}
+                  </span>
+                </button>
+              ))}
+              <p className="mt-1 px-2 text-xs text-muted-foreground/70">
+                Click to mount
+              </p>
+            </div>
+          </>
+        )}
       </ScrollArea>
     </aside>
   );
