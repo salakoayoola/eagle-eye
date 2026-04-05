@@ -1,0 +1,39 @@
+services:
+  # CopyParty — file server backend
+  copyparty:
+    image: ghcr.io/9001/copyparty:latest
+    volumes:
+      - ${DATA_DIR:-./data}:/data
+    ports:
+      - "${COPYPARTY_PORT:-3923}:3923"
+    command: >
+      -i 0.0.0.0
+      -p 3923
+      /data:data:r:rw
+
+  # Companion API — drive mount/eject (optional, Linux-only)
+  companion:
+    build: ./server
+    environment:
+      - PORT=3924
+      - MEDIA_MOUNT_DIR=${MEDIA_MOUNT_DIR:-/mnt/media}
+    ports:
+      - "${COMPANION_PORT:-3924}:3924"
+    # Requires privileged access for mount/unmount operations
+    privileged: true
+    volumes:
+      - /dev:/dev:ro
+      - ${MEDIA_MOUNT_DIR:-/mnt/media}:${MEDIA_MOUNT_DIR:-/mnt/media}:rshared
+    profiles:
+      - drives
+
+  # Frontend — nginx serving React app + reverse proxy
+  frontend:
+    build: ./client
+    ports:
+      - "${EAGLE_EYE_PORT:-8080}:80"
+    environment:
+      - COPYPARTY_URL=http://copyparty:3923
+      - COMPANION_API_URL=http://companion:3924
+    depends_on:
+      - copyparty
