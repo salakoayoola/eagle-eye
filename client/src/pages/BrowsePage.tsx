@@ -15,14 +15,18 @@ import { NewFolderDialog } from "@/components/files/NewFolderDialog";
 import { NewFileDialog } from "@/components/files/NewFileDialog";
 import { RenameDialog } from "@/components/files/RenameDialog";
 import { DeleteDialog } from "@/components/files/DeleteDialog";
+import { MoveDialog } from "@/components/files/MoveDialog";
 import { FileInfoSidebar } from "@/components/files/FileInfoSidebar";
 import { useFiles } from "@/hooks/use-files";
+import { useClipboard } from "@/hooks/use-clipboard";
 import {
   type CopyPartyEntry,
   createDirectory,
   createTextFile,
   deleteEntry,
   renameEntry,
+  moveEntry,
+  copyEntry,
   uploadFile,
 } from "@/lib/copyparty";
 import { ImageLightbox } from "@/components/media/ImageLightbox";
@@ -37,6 +41,7 @@ export function BrowsePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading, error } = useFiles(path);
+  const { clipboard, copy, cut, clear: clearClipboard } = useClipboard();
 
   const [viewMode, setViewMode] = useState<ViewMode>(
     () => (localStorage.getItem("eagle-eye-view") as ViewMode) || "grid"
@@ -50,6 +55,7 @@ export function BrowsePage() {
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<CopyPartyEntry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CopyPartyEntry | null>(null);
+  const [moveTarget, setMoveTarget] = useState<CopyPartyEntry | null>(null);
 
   // Media preview state
   const [mediaEntry, setMediaEntry] = useState<CopyPartyEntry | null>(null);
@@ -60,6 +66,13 @@ export function BrowsePage() {
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["files", path] });
   }, [queryClient, path]);
+
+  const invalidatePath = useCallback(
+    (p: string) => {
+      queryClient.invalidateQueries({ queryKey: ["files", p] });
+    },
+    [queryClient]
+  );
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
@@ -93,16 +106,59 @@ export function BrowsePage() {
   }, []);
 
   // Open media preview or the file
-  const handleFileOpen = useCallback((entry: CopyPartyEntry) => {
-    if (entry.type === "image" || entry.type === "video") {
-      setMediaEntry(entry);
-    } else if (entry.type === "d") {
-      navigate(`/browse/${entry.href}`);
-    } else {
-      // For non-previewable files, open info sidebar
-      setInfoEntry(entry);
+  const handleFileOpen = useCallback(
+    (entry: CopyPartyEntry) => {
+      if (entry.type === "image" || entry.type === "video") {
+        setMediaEntry(entry);
+      } else if (entry.type === "d") {
+        navigate(`/browse/${entry.href}`);
+      } else {
+        setInfoEntry(entry);
+      }
+    },
+    [navigate]
+  );
+
+  // Clipboard operations
+  const handleCopy = useCallback(
+    (entry: CopyPartyEntry) => {
+      copy([entry], path);
+    },
+    [copy, path]
+  );
+
+  const handleCut = useCallback(
+    (entry: CopyPartyEntry) => {
+      cut([entry], path);
+    },
+    [cut, path]
+  );
+
+  const handlePaste = useCallback(async () => {
+    if (!clipboard) return;
+
+    try {
+      for (const entry of clipboard.entries) {
+        if (clipboard.action === "copy") {
+          await copyEntry(entry.href, path);
+        } else {
+          await moveEntry(entry.href, path);
+        }
+      }
+
+      // Invalidate both source and destination
+      invalidate();
+      if (clipboard.sourcePath !== path) {
+        invalidatePath(clipboard.sourcePath);
+      }
+
+      if (clipboard.action === "cut") {
+        clearClipboard();
+      }
+    } catch (err) {
+      console.error("Paste failed:", err);
     }
-  }, [navigate]);
+  }, [clipboard, path, invalidate, invalidatePath, clearClipboard]);
 
   // File operations
   const handleNewFolder = useCallback(
@@ -144,6 +200,18 @@ export function BrowsePage() {
     });
     invalidate();
   }, [deleteTarget, invalidate, infoEntry]);
+
+  const handleMove = useCallback(
+    async (destPath: string) => {
+      if (!moveTarget) return;
+      await moveEntry(moveTarget.href, destPath);
+      setMoveTarget(null);
+      if (infoEntry?.href === moveTarget.href) setInfoEntry(null);
+      invalidate();
+      invalidatePath(destPath);
+    },
+    [moveTarget, invalidate, invalidatePath, infoEntry]
+  );
 
   const handleUploadFiles = useCallback(
     async (files: FileList) => {
@@ -206,6 +274,7 @@ export function BrowsePage() {
               onNewFolder={() => setNewFolderOpen(true)}
               onNewFile={() => setNewFileOpen(true)}
               onUpload={() => fileInputRef.current?.click()}
+              onPaste={handlePaste}
             />
           </div>
 
@@ -242,8 +311,10 @@ export function BrowsePage() {
               selectedPaths={selectedPaths}
               onRename={setRenameTarget}
               onDelete={setDeleteTarget}
-              onMove={() => {}}
+              onMove={setMoveTarget}
               onInfo={setInfoEntry}
+              onCopy={handleCopy}
+              onCut={handleCut}
             />
           ) : (
             <FileList
@@ -254,8 +325,10 @@ export function BrowsePage() {
               selectedPaths={selectedPaths}
               onRename={setRenameTarget}
               onDelete={setDeleteTarget}
-              onMove={() => {}}
+              onMove={setMoveTarget}
               onInfo={setInfoEntry}
+              onCopy={handleCopy}
+              onCut={handleCut}
             />
           )}
         </div>
@@ -313,6 +386,14 @@ export function BrowsePage() {
           onOpenChange={(open) => !open && setDeleteTarget(null)}
           name={deleteTarget.name}
           onConfirm={handleDelete}
+        />
+      )}
+      {moveTarget && (
+        <MoveDialog
+          open={!!moveTarget}
+          onOpenChange={(open) => !open && setMoveTarget(null)}
+          entryName={moveTarget.name}
+          onSubmit={handleMove}
         />
       )}
     </UploadZone>

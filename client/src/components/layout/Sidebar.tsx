@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router";
 import { useDrives, useMountDrive } from "@/hooks/use-drives";
 import { formatDriveSize } from "@/lib/companion";
+import { useFavorites } from "@/hooks/use-favorites";
 
 interface SidebarItem {
   label: string;
@@ -17,6 +18,7 @@ export function Sidebar() {
   const location = useLocation();
   const { data: drives } = useDrives();
   const mountMutation = useMountDrive();
+  const { favorites } = useFavorites();
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
@@ -40,19 +42,10 @@ export function Sidebar() {
     icon: <Usb className="h-4 w-4" />,
   }));
 
-  // Favorites from localStorage
-  const favorites: SidebarItem[] = (() => {
-    try {
-      const stored = localStorage.getItem("eagle-eye-favorites");
-      if (!stored) return [];
-      return JSON.parse(stored).map((f: { label: string; path: string }) => ({
-        ...f,
-        icon: <Folder className="h-4 w-4" />,
-      }));
-    } catch {
-      return [];
-    }
-  })();
+  const favoriteItems: SidebarItem[] = favorites.map((f) => ({
+    ...f,
+    icon: <Folder className="h-4 w-4" />,
+  }));
 
   return (
     <aside className="hidden w-60 shrink-0 border-r bg-card md:block">
@@ -62,12 +55,12 @@ export function Sidebar() {
           <h3 className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Favorites
           </h3>
-          {favorites.length === 0 ? (
-            <p className="px-2 text-xs text-muted-foreground">
-              Right-click a folder to pin it
+          {favoriteItems.length === 0 ? (
+            <p className="px-2 text-xs text-muted-foreground/70 italic">
+              No favorites yet
             </p>
           ) : (
-            favorites.map((item) => (
+            favoriteItems.map((item) => (
               <SidebarButton
                 key={item.path}
                 item={item}

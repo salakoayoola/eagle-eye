@@ -246,6 +246,21 @@ export async function moveEntry(
   if (!res.ok) throw new Error(`Failed to move: ${res.statusText}`);
 }
 
+/** Copy a file or directory to a new parent */
+export async function copyEntry(
+  srcPath: string,
+  destDir: string
+): Promise<void> {
+  const cleanSrc = srcPath.replace(/^\/+|\/+$/g, "");
+  const cleanDest = destDir.replace(/^\/+|\/+$/g, "");
+  const name = cleanSrc.split("/").pop();
+  const res = await fetch(
+    `${BASE}/${cleanSrc}?copy=${encodeURIComponent(cleanDest + "/" + name)}`,
+    { method: "POST" }
+  );
+  if (!res.ok) throw new Error(`Failed to copy: ${res.statusText}`);
+}
+
 /** Create a text file with content */
 export async function createTextFile(
   dirPath: string,

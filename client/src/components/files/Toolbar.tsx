@@ -1,4 +1,11 @@
-import { LayoutGrid, List, ArrowUpDown, Plus, Upload } from "lucide-react";
+import {
+  LayoutGrid,
+  List,
+  ArrowUpDown,
+  Plus,
+  Upload,
+  ClipboardPaste,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useClipboard } from "@/hooks/use-clipboard";
 
 export type ViewMode = "grid" | "list";
 export type SortBy = "name" | "size" | "date";
@@ -21,6 +29,7 @@ interface ToolbarProps {
   onNewFolder: () => void;
   onNewFile: () => void;
   onUpload: () => void;
+  onPaste?: () => void;
 }
 
 export function Toolbar({
@@ -32,7 +41,10 @@ export function Toolbar({
   onNewFolder,
   onNewFile,
   onUpload,
+  onPaste,
 }: ToolbarProps) {
+  const { clipboard } = useClipboard();
+
   return (
     <div className="flex items-center gap-2">
       {/* View toggle */}
@@ -81,6 +93,22 @@ export function Toolbar({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Paste (visible when clipboard has items) */}
+      {clipboard && onPaste && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5"
+          onClick={onPaste}
+        >
+          <ClipboardPaste className="h-3.5 w-3.5" />
+          Paste{" "}
+          {clipboard.entries.length > 1
+            ? `(${clipboard.entries.length})`
+            : `"${clipboard.entries[0].name}"`}
+        </Button>
+      )}
 
       <div className="flex-1" />
 

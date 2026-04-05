@@ -4,6 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/AppShell";
 import { BrowsePage } from "@/pages/BrowsePage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import {
+  ClipboardContext,
+  useClipboardState,
+} from "@/hooks/use-clipboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,19 +19,23 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  const clipboardState = useClipboardState();
+
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<AppShell />}>
-              <Route index element={<Navigate to="/browse/raid" replace />} />
-              <Route path="browse/*" element={<BrowsePage />} />
-              <Route path="settings" element={<SettingsPage />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <ClipboardContext.Provider value={clipboardState}>
+        <TooltipProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route index element={<Navigate to="/browse/raid" replace />} />
+                <Route path="browse/*" element={<BrowsePage />} />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ClipboardContext.Provider>
     </QueryClientProvider>
   );
 }

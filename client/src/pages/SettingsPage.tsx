@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useTheme } from "@/hooks/use-theme";
+import { useFavorites } from "@/hooks/use-favorites";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -33,25 +34,7 @@ export function SettingsPage() {
   }, []);
 
   // Favorites management
-  const [favorites, setFavorites] = useState<{ label: string; path: string }[]>(
-    () => {
-      try {
-        const stored = localStorage.getItem("eagle-eye-favorites");
-        return stored ? JSON.parse(stored) : [];
-      } catch {
-        return [];
-      }
-    }
-  );
-
-  const removeFavorite = useCallback(
-    (path: string) => {
-      const updated = favorites.filter((f) => f.path !== path);
-      setFavorites(updated);
-      localStorage.setItem("eagle-eye-favorites", JSON.stringify(updated));
-    },
-    [favorites]
-  );
+  const { favorites, removeFavorite } = useFavorites();
 
   return (
     <div className="mx-auto max-w-2xl p-6">

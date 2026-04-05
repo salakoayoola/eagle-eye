@@ -28,6 +28,8 @@ interface FileCardProps {
   onDelete?: () => void;
   onMove?: () => void;
   onInfo?: () => void;
+  onCopy?: () => void;
+  onCut?: () => void;
 }
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -51,6 +53,8 @@ export function FileCard({
   onDelete,
   onMove,
   onInfo,
+  onCopy,
+  onCut,
 }: FileCardProps) {
   const card = (
     <div
@@ -116,6 +120,8 @@ export function FileCard({
         onDelete={onDelete}
         onMove={onMove}
         onInfo={onInfo}
+        onCopy={onCopy}
+        onCut={onCut}
       >
         {card}
       </FileContextMenu>

@@ -24,6 +24,8 @@ interface FileListProps {
   onDelete?: (entry: CopyPartyEntry) => void;
   onMove?: (entry: CopyPartyEntry) => void;
   onInfo?: (entry: CopyPartyEntry) => void;
+  onCopy?: (entry: CopyPartyEntry) => void;
+  onCut?: (entry: CopyPartyEntry) => void;
 }
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -49,6 +51,8 @@ export function FileList({
   onDelete,
   onMove,
   onInfo,
+  onCopy,
+  onCut,
 }: FileListProps) {
   const allEntries = [
     ...dirs.map((d) => ({ ...d, type: "d" as const })),
@@ -101,6 +105,8 @@ export function FileList({
               onDelete={() => onDelete(entry)}
               onMove={() => onMove(entry)}
               onInfo={onInfo ? () => onInfo(entry) : undefined}
+              onCopy={onCopy ? () => onCopy(entry) : undefined}
+              onCut={onCut ? () => onCut(entry) : undefined}
             >
               {row}
             </FileContextMenu>

@@ -12,9 +12,13 @@ import {
   FolderInput,
   Info,
   Star,
+  StarOff,
   ExternalLink,
+  Copy,
+  Scissors,
 } from "lucide-react";
 import { fileUrl, type CopyPartyEntry } from "@/lib/copyparty";
+import { useFavorites } from "@/hooks/use-favorites";
 
 interface FileContextMenuProps {
   entry: CopyPartyEntry;
@@ -23,6 +27,8 @@ interface FileContextMenuProps {
   onDelete: () => void;
   onMove: () => void;
   onInfo?: () => void;
+  onCopy?: () => void;
+  onCut?: () => void;
 }
 
 export function FileContextMenu({
@@ -32,22 +38,13 @@ export function FileContextMenu({
   onDelete,
   onMove,
   onInfo,
+  onCopy,
+  onCut,
 }: FileContextMenuProps) {
   const isDir = entry.type === "d";
-
-  const handleAddFavorite = () => {
-    try {
-      const stored = localStorage.getItem("eagle-eye-favorites");
-      const favorites = stored ? JSON.parse(stored) : [];
-      const path = `/browse/${entry.href}`;
-      if (!favorites.some((f: { path: string }) => f.path === path)) {
-        favorites.push({ label: entry.name, path });
-        localStorage.setItem("eagle-eye-favorites", JSON.stringify(favorites));
-      }
-    } catch {
-      // ignore
-    }
-  };
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
+  const favPath = `/browse/${entry.href}`;
+  const isFav = isDir && isFavorite(favPath);
 
   return (
     <ContextMenu>
@@ -80,21 +77,45 @@ export function FileContextMenu({
             Open in New Tab
           </ContextMenuItem>
         )}
-        {isDir && (
-          <ContextMenuItem onClick={handleAddFavorite}>
-            <Star className="mr-2 h-4 w-4" />
-            Add to Favorites
+        <ContextMenuSeparator />
+        {onCopy && (
+          <ContextMenuItem onClick={onCopy}>
+            <Copy className="mr-2 h-4 w-4" />
+            Copy
           </ContextMenuItem>
         )}
-        <ContextMenuSeparator />
+        {onCut && (
+          <ContextMenuItem onClick={onCut}>
+            <Scissors className="mr-2 h-4 w-4" />
+            Cut
+          </ContextMenuItem>
+        )}
+        <ContextMenuItem onClick={onMove}>
+          <FolderInput className="mr-2 h-4 w-4" />
+          Move to...
+        </ContextMenuItem>
         <ContextMenuItem onClick={onRename}>
           <Pencil className="mr-2 h-4 w-4" />
           Rename
         </ContextMenuItem>
-        <ContextMenuItem onClick={onMove}>
-          <FolderInput className="mr-2 h-4 w-4" />
-          Move
-        </ContextMenuItem>
+        {isDir && (
+          <>
+            <ContextMenuSeparator />
+            {isFav ? (
+              <ContextMenuItem onClick={() => removeFavorite(favPath)}>
+                <StarOff className="mr-2 h-4 w-4" />
+                Remove from Favorites
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem
+                onClick={() => addFavorite(entry.name, favPath)}
+              >
+                <Star className="mr-2 h-4 w-4" />
+                Add to Favorites
+              </ContextMenuItem>
+            )}
+          </>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={onDelete} className="text-destructive">
           <Trash2 className="mr-2 h-4 w-4" />

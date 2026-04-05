@@ -12,6 +12,8 @@ interface FileGridProps {
   onDelete?: (entry: CopyPartyEntry) => void;
   onMove?: (entry: CopyPartyEntry) => void;
   onInfo?: (entry: CopyPartyEntry) => void;
+  onCopy?: (entry: CopyPartyEntry) => void;
+  onCut?: (entry: CopyPartyEntry) => void;
 }
 
 export function FileGrid({
@@ -24,6 +26,8 @@ export function FileGrid({
   onDelete,
   onMove,
   onInfo,
+  onCopy,
+  onCut,
 }: FileGridProps) {
   if (dirs.length === 0 && files.length === 0) {
     return (
@@ -45,6 +49,8 @@ export function FileGrid({
           onDelete={onDelete ? () => onDelete(dir) : undefined}
           onMove={onMove ? () => onMove(dir) : undefined}
           onInfo={onInfo ? () => onInfo(dir) : undefined}
+          onCopy={onCopy ? () => onCopy(dir) : undefined}
+          onCut={onCut ? () => onCut(dir) : undefined}
         />
       ))}
       {files.map((file) => (
@@ -57,6 +63,8 @@ export function FileGrid({
           onDelete={onDelete ? () => onDelete(file) : undefined}
           onMove={onMove ? () => onMove(file) : undefined}
           onInfo={onInfo ? () => onInfo(file) : undefined}
+          onCopy={onCopy ? () => onCopy(file) : undefined}
+          onCut={onCut ? () => onCut(file) : undefined}
         />
       ))}
     </div>
