@@ -1,6 +1,7 @@
 services:
   # CopyParty — file server backend
   # Image: https://hub.docker.com/r/copyparty/ac (includes media thumbnails)
+  # Set COPYPARTY_EXTERNAL=true in .env to use an existing CopyParty instance
   copyparty:
     image: copyparty/ac:latest
     user: "1000"
@@ -10,6 +11,8 @@ services:
       - "${COPYPARTY_PORT:-3923}:3923"
     command: -i 0.0.0.0 -p 3923 -v /w::r:rw
     restart: unless-stopped
+    profiles:
+      - bundled-copyparty
 
   # Companion API — drive mount/eject (optional, Linux-only)
   companion:
@@ -33,9 +36,6 @@ services:
     ports:
       - "${EAGLE_EYE_PORT:-8080}:80"
     environment:
-      - COPYPARTY_URL=http://copyparty:3923
-      - COMPANION_API_URL=http://companion:3924
-    depends_on:
-      copyparty:
-        condition: service_started
+      - COPYPARTY_URL=${COPYPARTY_URL:-http://copyparty:3923}
+      - COMPANION_API_URL=${COMPANION_API_URL:-http://companion:3924}
     restart: unless-stopped
