@@ -10,7 +10,7 @@ import {
   Trash2,
   LayoutGrid,
   List,
-  Github,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDrives, useEjectDrive } from "@/hooks/use-drives";
@@ -220,7 +220,7 @@ export function SettingsPage() {
           rel="noopener noreferrer"
           className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
         >
-          <Github className="h-3.5 w-3.5" />
+          <ExternalLink className="h-3.5 w-3.5" />
           View on GitHub
         </a>
       </section>

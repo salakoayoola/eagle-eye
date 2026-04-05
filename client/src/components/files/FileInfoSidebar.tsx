@@ -21,7 +21,6 @@ import {
   fileUrl,
   thumbnailUrl,
   formatBytes,
-  formatDate,
 } from "@/lib/copyparty";
 
 interface FileInfoSidebarProps {
