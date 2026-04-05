@@ -1,19 +1,32 @@
 import { Folder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CopyPartyEntry } from "@/lib/copyparty";
+import { FileContextMenu } from "./FileContextMenu";
 
 interface FolderCardProps {
   entry: CopyPartyEntry;
   onClick: () => void;
   selected?: boolean;
+  onRename?: () => void;
+  onDelete?: () => void;
+  onMove?: () => void;
+  onInfo?: () => void;
 }
 
-export function FolderCard({ entry, onClick, selected }: FolderCardProps) {
-  return (
-    <button
+export function FolderCard({
+  entry,
+  onClick,
+  selected,
+  onRename,
+  onDelete,
+  onMove,
+  onInfo,
+}: FolderCardProps) {
+  const card = (
+    <div
       onClick={onClick}
       className={cn(
-        "group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all",
+        "group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all cursor-pointer",
         "hover:shadow-md hover:border-primary/30",
         selected && "ring-2 ring-primary border-primary/50"
       )}
@@ -30,6 +43,22 @@ export function FolderCard({ entry, onClick, selected }: FolderCardProps) {
           {entry.num !== undefined ? `${entry.num} items` : "Folder"}
         </span>
       </div>
-    </button>
+    </div>
   );
+
+  if (onRename && onDelete && onMove) {
+    return (
+      <FileContextMenu
+        entry={{ ...entry, type: "d" }}
+        onRename={onRename}
+        onDelete={onDelete}
+        onMove={onMove}
+        onInfo={onInfo}
+      >
+        {card}
+      </FileContextMenu>
+    );
+  }
+
+  return card;
 }

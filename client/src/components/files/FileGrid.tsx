@@ -8,6 +8,10 @@ interface FileGridProps {
   onNavigate: (entry: CopyPartyEntry) => void;
   onSelect: (entry: CopyPartyEntry) => void;
   selectedPaths: Set<string>;
+  onRename?: (entry: CopyPartyEntry) => void;
+  onDelete?: (entry: CopyPartyEntry) => void;
+  onMove?: (entry: CopyPartyEntry) => void;
+  onInfo?: (entry: CopyPartyEntry) => void;
 }
 
 export function FileGrid({
@@ -16,6 +20,10 @@ export function FileGrid({
   onNavigate,
   onSelect,
   selectedPaths,
+  onRename,
+  onDelete,
+  onMove,
+  onInfo,
 }: FileGridProps) {
   if (dirs.length === 0 && files.length === 0) {
     return (
@@ -33,6 +41,10 @@ export function FileGrid({
           entry={dir}
           onClick={() => onNavigate(dir)}
           selected={selectedPaths.has(dir.href)}
+          onRename={onRename ? () => onRename(dir) : undefined}
+          onDelete={onDelete ? () => onDelete(dir) : undefined}
+          onMove={onMove ? () => onMove(dir) : undefined}
+          onInfo={onInfo ? () => onInfo(dir) : undefined}
         />
       ))}
       {files.map((file) => (
@@ -41,6 +53,10 @@ export function FileGrid({
           entry={file}
           onClick={() => onSelect(file)}
           selected={selectedPaths.has(file.href)}
+          onRename={onRename ? () => onRename(file) : undefined}
+          onDelete={onDelete ? () => onDelete(file) : undefined}
+          onMove={onMove ? () => onMove(file) : undefined}
+          onInfo={onInfo ? () => onInfo(file) : undefined}
         />
       ))}
     </div>

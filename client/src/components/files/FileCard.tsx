@@ -7,6 +7,8 @@ import {
   Image as ImageIcon,
   Music,
   Play,
+  Camera,
+  Film,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -16,16 +18,23 @@ import {
   formatDate,
 } from "@/lib/copyparty";
 import { VideoPreview } from "@/components/media/VideoPreview";
+import { FileContextMenu } from "./FileContextMenu";
 
 interface FileCardProps {
   entry: CopyPartyEntry;
   onClick: () => void;
   selected?: boolean;
+  onRename?: () => void;
+  onDelete?: () => void;
+  onMove?: () => void;
+  onInfo?: () => void;
 }
 
 const typeIcons: Record<string, React.ReactNode> = {
   image: <ImageIcon className="h-10 w-10 text-muted-foreground/50" />,
+  "raw-image": <Camera className="h-10 w-10 text-muted-foreground/50" />,
   video: <FileVideo className="h-10 w-10 text-muted-foreground/50" />,
+  "raw-video": <Film className="h-10 w-10 text-muted-foreground/50" />,
   audio: <Music className="h-10 w-10 text-muted-foreground/50" />,
   text: <FileText className="h-10 w-10 text-muted-foreground/50" />,
   code: <FileCode className="h-10 w-10 text-muted-foreground/50" />,
@@ -34,12 +43,21 @@ const typeIcons: Record<string, React.ReactNode> = {
   file: <File className="h-10 w-10 text-muted-foreground/50" />,
 };
 
-export function FileCard({ entry, onClick, selected }: FileCardProps) {
-  return (
-    <button
+export function FileCard({
+  entry,
+  onClick,
+  selected,
+  onRename,
+  onDelete,
+  onMove,
+  onInfo,
+}: FileCardProps) {
+  const card = (
+    <div
+      data-card
       onClick={onClick}
       className={cn(
-        "group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all",
+        "group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all cursor-pointer",
         "hover:shadow-md hover:border-primary/30",
         selected && "ring-2 ring-primary border-primary/50"
       )}
@@ -87,6 +105,22 @@ export function FileCard({ entry, onClick, selected }: FileCardProps) {
           )}
         </span>
       </div>
-    </button>
+    </div>
   );
+
+  if (onRename && onDelete && onMove) {
+    return (
+      <FileContextMenu
+        entry={entry}
+        onRename={onRename}
+        onDelete={onDelete}
+        onMove={onMove}
+        onInfo={onInfo}
+      >
+        {card}
+      </FileContextMenu>
+    );
+  }
+
+  return card;
 }

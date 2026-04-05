@@ -15,6 +15,7 @@ import { NewFolderDialog } from "@/components/files/NewFolderDialog";
 import { NewFileDialog } from "@/components/files/NewFileDialog";
 import { RenameDialog } from "@/components/files/RenameDialog";
 import { DeleteDialog } from "@/components/files/DeleteDialog";
+import { FileInfoSidebar } from "@/components/files/FileInfoSidebar";
 import { useFiles } from "@/hooks/use-files";
 import {
   type CopyPartyEntry,
@@ -23,7 +24,6 @@ import {
   deleteEntry,
   renameEntry,
   uploadFile,
-  fileUrl,
 } from "@/lib/copyparty";
 import { ImageLightbox } from "@/components/media/ImageLightbox";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
@@ -54,6 +54,9 @@ export function BrowsePage() {
   // Media preview state
   const [mediaEntry, setMediaEntry] = useState<CopyPartyEntry | null>(null);
 
+  // Info sidebar state
+  const [infoEntry, setInfoEntry] = useState<CopyPartyEntry | null>(null);
+
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["files", path] });
   }, [queryClient, path]);
@@ -78,18 +81,28 @@ export function BrowsePage() {
   const handleNavigate = useCallback(
     (entry: CopyPartyEntry) => {
       setSelectedPaths(new Set());
+      setInfoEntry(null);
       navigate(`/browse/${entry.href}`);
     },
     [navigate]
   );
 
+  // Single click on file → open info sidebar
+  const handleFileSelect = useCallback((entry: CopyPartyEntry) => {
+    setInfoEntry(entry);
+  }, []);
+
+  // Open media preview or the file
   const handleFileOpen = useCallback((entry: CopyPartyEntry) => {
     if (entry.type === "image" || entry.type === "video") {
       setMediaEntry(entry);
+    } else if (entry.type === "d") {
+      navigate(`/browse/${entry.href}`);
     } else {
-      window.open(fileUrl(entry.href), "_blank");
+      // For non-previewable files, open info sidebar
+      setInfoEntry(entry);
     }
-  }, []);
+  }, [navigate]);
 
   // File operations
   const handleNewFolder = useCallback(
@@ -113,14 +126,16 @@ export function BrowsePage() {
       if (!renameTarget) return;
       await renameEntry(renameTarget.href, newName);
       setRenameTarget(null);
+      if (infoEntry?.href === renameTarget.href) setInfoEntry(null);
       invalidate();
     },
-    [renameTarget, invalidate]
+    [renameTarget, invalidate, infoEntry]
   );
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
     await deleteEntry(deleteTarget.href);
+    if (infoEntry?.href === deleteTarget.href) setInfoEntry(null);
     setDeleteTarget(null);
     setSelectedPaths((prev) => {
       const next = new Set(prev);
@@ -128,7 +143,7 @@ export function BrowsePage() {
       return next;
     });
     invalidate();
-  }, [deleteTarget, invalidate]);
+  }, [deleteTarget, invalidate, infoEntry]);
 
   const handleUploadFiles = useCallback(
     async (files: FileList) => {
@@ -172,114 +187,134 @@ export function BrowsePage() {
 
   return (
     <UploadZone onFiles={handleUploadFiles}>
-      <div className="p-4">
-        {/* Breadcrumbs */}
-        <div className="mb-4">
-          <Breadcrumbs path={path} />
+      <div className="flex h-full">
+        {/* Main content */}
+        <div className="flex-1 min-w-0 p-4">
+          {/* Breadcrumbs */}
+          <div className="mb-4">
+            <Breadcrumbs path={path} />
+          </div>
+
+          {/* Toolbar */}
+          <div className="mb-4">
+            <Toolbar
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
+              onNewFolder={() => setNewFolderOpen(true)}
+              onNewFile={() => setNewFileOpen(true)}
+              onUpload={() => fileInputRef.current?.click()}
+            />
+          </div>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) handleUploadFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+
+          {/* Content */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-24 text-sm text-muted-foreground">
+              <p>Failed to load files</p>
+              <p className="text-xs mt-1">
+                {error instanceof Error ? error.message : "Unknown error"}
+              </p>
+            </div>
+          ) : viewMode === "grid" ? (
+            <FileGrid
+              dirs={sortedDirs}
+              files={sortedFiles}
+              onNavigate={handleNavigate}
+              onSelect={handleFileSelect}
+              selectedPaths={selectedPaths}
+              onRename={setRenameTarget}
+              onDelete={setDeleteTarget}
+              onMove={() => {}}
+              onInfo={setInfoEntry}
+            />
+          ) : (
+            <FileList
+              dirs={sortedDirs}
+              files={sortedFiles}
+              onNavigate={handleNavigate}
+              onSelect={handleFileSelect}
+              selectedPaths={selectedPaths}
+              onRename={setRenameTarget}
+              onDelete={setDeleteTarget}
+              onMove={() => {}}
+              onInfo={setInfoEntry}
+            />
+          )}
         </div>
 
-        {/* Toolbar */}
-        <div className="mb-4">
-          <Toolbar
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSortChange={handleSortChange}
-            onNewFolder={() => setNewFolderOpen(true)}
-            onNewFile={() => setNewFileOpen(true)}
-            onUpload={() => fileInputRef.current?.click()}
-          />
-        </div>
-
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files) handleUploadFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-
-        {/* Content */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center py-24 text-sm text-muted-foreground">
-            <p>Failed to load files</p>
-            <p className="text-xs mt-1">
-              {error instanceof Error ? error.message : "Unknown error"}
-            </p>
-          </div>
-        ) : viewMode === "grid" ? (
-          <FileGrid
-            dirs={sortedDirs}
-            files={sortedFiles}
-            onNavigate={handleNavigate}
-            onSelect={handleFileOpen}
-            selectedPaths={selectedPaths}
-          />
-        ) : (
-          <FileList
-            dirs={sortedDirs}
-            files={sortedFiles}
-            onNavigate={handleNavigate}
-            onSelect={handleFileOpen}
-            selectedPaths={selectedPaths}
-          />
-        )}
-
-        {/* Media Preview */}
-        {mediaEntry?.type === "image" && (
-          <ImageLightbox
-            entry={mediaEntry}
-            onClose={() => setMediaEntry(null)}
-            hasPrev={mediaIndex > 0}
-            hasNext={mediaIndex < mediaFiles.length - 1}
-            onPrev={() => setMediaEntry(mediaFiles[mediaIndex - 1])}
-            onNext={() => setMediaEntry(mediaFiles[mediaIndex + 1])}
-          />
-        )}
-        {mediaEntry?.type === "video" && (
-          <VideoPlayer
-            entry={mediaEntry}
-            onClose={() => setMediaEntry(null)}
-          />
-        )}
-
-        {/* Dialogs */}
-        <NewFolderDialog
-          open={newFolderOpen}
-          onOpenChange={setNewFolderOpen}
-          onSubmit={handleNewFolder}
-        />
-        <NewFileDialog
-          open={newFileOpen}
-          onOpenChange={setNewFileOpen}
-          onSubmit={handleNewFile}
-        />
-        {renameTarget && (
-          <RenameDialog
-            open={!!renameTarget}
-            onOpenChange={(open) => !open && setRenameTarget(null)}
-            currentName={renameTarget.name}
-            onSubmit={handleRename}
-          />
-        )}
-        {deleteTarget && (
-          <DeleteDialog
-            open={!!deleteTarget}
-            onOpenChange={(open) => !open && setDeleteTarget(null)}
-            name={deleteTarget.name}
-            onConfirm={handleDelete}
+        {/* Info Sidebar */}
+        {infoEntry && (
+          <FileInfoSidebar
+            entry={infoEntry}
+            onClose={() => setInfoEntry(null)}
+            onOpen={() => handleFileOpen(infoEntry)}
           />
         )}
       </div>
+
+      {/* Media Preview */}
+      {mediaEntry?.type === "image" && (
+        <ImageLightbox
+          entry={mediaEntry}
+          onClose={() => setMediaEntry(null)}
+          hasPrev={mediaIndex > 0}
+          hasNext={mediaIndex < mediaFiles.length - 1}
+          onPrev={() => setMediaEntry(mediaFiles[mediaIndex - 1])}
+          onNext={() => setMediaEntry(mediaFiles[mediaIndex + 1])}
+        />
+      )}
+      {mediaEntry?.type === "video" && (
+        <VideoPlayer
+          entry={mediaEntry}
+          onClose={() => setMediaEntry(null)}
+        />
+      )}
+
+      {/* Dialogs */}
+      <NewFolderDialog
+        open={newFolderOpen}
+        onOpenChange={setNewFolderOpen}
+        onSubmit={handleNewFolder}
+      />
+      <NewFileDialog
+        open={newFileOpen}
+        onOpenChange={setNewFileOpen}
+        onSubmit={handleNewFile}
+      />
+      {renameTarget && (
+        <RenameDialog
+          open={!!renameTarget}
+          onOpenChange={(open) => !open && setRenameTarget(null)}
+          currentName={renameTarget.name}
+          onSubmit={handleRename}
+        />
+      )}
+      {deleteTarget && (
+        <DeleteDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          name={deleteTarget.name}
+          onConfirm={handleDelete}
+        />
+      )}
     </UploadZone>
   );
 }

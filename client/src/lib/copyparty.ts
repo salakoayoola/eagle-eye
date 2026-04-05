@@ -87,16 +87,63 @@ function normalizeListing(data: any, path: string): CopyPartyListing {
 function guessType(name: string): string {
   const ext = name.split(".").pop()?.toLowerCase() || "";
   const types: Record<string, string> = {
+    // Web-previewable images
     jpg: "image", jpeg: "image", png: "image", gif: "image", webp: "image",
-    svg: "image", bmp: "image", ico: "image", avif: "image",
-    mp4: "video", mkv: "video", mov: "video", avi: "video", webm: "video",
-    mp3: "audio", wav: "audio", flac: "audio", ogg: "audio", aac: "audio", m4a: "audio",
+    svg: "image", bmp: "image", ico: "image", avif: "image", jfif: "image",
+    // RAW image formats (camera)
+    nef: "raw-image", cr2: "raw-image", cr3: "raw-image", arw: "raw-image",
+    orf: "raw-image", rw2: "raw-image", dng: "raw-image", raf: "raw-image",
+    pef: "raw-image", srw: "raw-image", x3f: "raw-image", iiq: "raw-image",
+    tiff: "image", tif: "image",
+    // PSD / design
+    psd: "raw-image", ai: "raw-image", eps: "raw-image",
+    // Web-playable video
+    mp4: "video", webm: "video", ogg: "video",
+    // Non-web video (needs transcoding)
+    mov: "raw-video", mkv: "raw-video", avi: "raw-video", wmv: "raw-video",
+    flv: "raw-video", m4v: "raw-video", mpg: "raw-video", mpeg: "raw-video",
+    "3gp": "raw-video", mts: "raw-video", m2ts: "raw-video",
+    // Cinema / pro video
+    r3d: "raw-video", braw: "raw-video", ari: "raw-video", mxf: "raw-video",
+    prores: "raw-video",
+    // Audio
+    mp3: "audio", wav: "audio", flac: "audio", aac: "audio", m4a: "audio",
+    wma: "audio", alac: "audio", aiff: "audio", ape: "audio", opus: "audio",
+    // Documents
     pdf: "pdf",
+    doc: "document", docx: "document", xls: "document", xlsx: "document",
+    ppt: "document", pptx: "document", odt: "document", ods: "document",
+    // Text
     txt: "text", md: "text", json: "text", csv: "text", log: "text",
-    js: "code", ts: "code", py: "code", html: "code", css: "code",
+    xml: "text", yaml: "text", yml: "text", toml: "text", ini: "text",
+    cfg: "text", conf: "text", env: "text",
+    // Code
+    js: "code", jsx: "code", ts: "code", tsx: "code", py: "code",
+    html: "code", css: "code", scss: "code", less: "code",
+    go: "code", rs: "code", java: "code", kt: "code", swift: "code",
+    c: "code", cpp: "code", h: "code", hpp: "code",
+    rb: "code", php: "code", sh: "code", bash: "code", zsh: "code",
+    sql: "code", r: "code", lua: "code", zig: "code",
+    // Archives
     zip: "archive", tar: "archive", gz: "archive", "7z": "archive", rar: "archive",
+    bz2: "archive", xz: "archive", zst: "archive", lz4: "archive",
+    iso: "archive", dmg: "archive",
+    // Subtitles
+    srt: "text", vtt: "text", ass: "text", ssa: "text",
+    // Fonts
+    ttf: "file", otf: "file", woff: "file", woff2: "file",
   };
   return types[ext] || "file";
+}
+
+/** Check if a file type can be previewed in the browser */
+export function isPreviewable(type: string): boolean {
+  return type === "image" || type === "video";
+}
+
+/** Check if a file can be opened inline (text, code, etc.) */
+export function isTextType(type: string): boolean {
+  return type === "text" || type === "code";
 }
 
 /** Build a thumbnail URL for an image/video */

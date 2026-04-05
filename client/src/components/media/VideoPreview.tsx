@@ -13,14 +13,15 @@ export function VideoPreview({ href, name, className }: VideoPreviewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseEnter = useCallback(() => {
+  const startPreview = useCallback(() => {
     timerRef.current = setTimeout(() => {
       setIsPlaying(true);
     }, HOVER_DELAY);
   }, []);
 
-  const handleMouseLeave = useCallback(() => {
+  const stopPreview = useCallback(() => {
     clearTimeout(timerRef.current);
     setIsPlaying(false);
     if (videoRef.current) {
@@ -29,25 +30,34 @@ export function VideoPreview({ href, name, className }: VideoPreviewProps) {
     }
   }, []);
 
+  // Listen on the closest card ancestor for mouse enter/leave
+  // to handle hover even when the mouse is over sibling elements
+  useEffect(() => {
+    const card = containerRef.current?.closest("[data-card]");
+    if (!card) return;
+
+    const enter = () => startPreview();
+    const leave = () => stopPreview();
+
+    card.addEventListener("mouseenter", enter);
+    card.addEventListener("mouseleave", leave);
+    return () => {
+      card.removeEventListener("mouseenter", enter);
+      card.removeEventListener("mouseleave", leave);
+      clearTimeout(timerRef.current);
+    };
+  }, [startPreview, stopPreview]);
+
   useEffect(() => {
     if (isPlaying && videoRef.current) {
       videoRef.current.play().catch(() => {
-        // Autoplay may be blocked
         setIsPlaying(false);
       });
     }
   }, [isPlaying]);
 
-  useEffect(() => {
-    return () => clearTimeout(timerRef.current);
-  }, []);
-
   return (
-    <div
-      className={className}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
+    <div ref={containerRef} className={className}>
       {isPlaying ? (
         <video
           ref={videoRef}

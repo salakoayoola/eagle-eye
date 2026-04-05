@@ -10,6 +10,9 @@ import {
   Pencil,
   Trash2,
   FolderInput,
+  Info,
+  Star,
+  ExternalLink,
 } from "lucide-react";
 import { fileUrl, type CopyPartyEntry } from "@/lib/copyparty";
 
@@ -19,6 +22,7 @@ interface FileContextMenuProps {
   onRename: () => void;
   onDelete: () => void;
   onMove: () => void;
+  onInfo?: () => void;
 }
 
 export function FileContextMenu({
@@ -27,13 +31,34 @@ export function FileContextMenu({
   onRename,
   onDelete,
   onMove,
+  onInfo,
 }: FileContextMenuProps) {
   const isDir = entry.type === "d";
+
+  const handleAddFavorite = () => {
+    try {
+      const stored = localStorage.getItem("eagle-eye-favorites");
+      const favorites = stored ? JSON.parse(stored) : [];
+      const path = `/browse/${entry.href}`;
+      if (!favorites.some((f: { path: string }) => f.path === path)) {
+        favorites.push({ label: entry.name, path });
+        localStorage.setItem("eagle-eye-favorites", JSON.stringify(favorites));
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-48">
+      <ContextMenuContent className="w-52">
+        {onInfo && (
+          <ContextMenuItem onClick={onInfo}>
+            <Info className="mr-2 h-4 w-4" />
+            Get Info
+          </ContextMenuItem>
+        )}
         {!isDir && (
           <ContextMenuItem
             onClick={() => {
@@ -47,6 +72,21 @@ export function FileContextMenu({
             Download
           </ContextMenuItem>
         )}
+        {!isDir && (
+          <ContextMenuItem
+            onClick={() => window.open(fileUrl(entry.href), "_blank")}
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Open in New Tab
+          </ContextMenuItem>
+        )}
+        {isDir && (
+          <ContextMenuItem onClick={handleAddFavorite}>
+            <Star className="mr-2 h-4 w-4" />
+            Add to Favorites
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={onRename}>
           <Pencil className="mr-2 h-4 w-4" />
           Rename

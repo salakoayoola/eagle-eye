@@ -1,14 +1,10 @@
 import { execFile } from "node:child_process";
-import { readdir } from "node:fs/promises";
+import { readdir, mkdir, rmdir } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const exec = promisify(execFile);
 
 const MEDIA_DIR = process.env.MEDIA_MOUNT_DIR || "/mnt/media";
-const MOUNT_SCRIPT =
-  process.env.MOUNT_SCRIPT || "/usr/local/bin/copyparty-mount";
-const UNMOUNT_SCRIPT =
-  process.env.UNMOUNT_SCRIPT || "/usr/local/bin/copyparty-unmount";
 
 export interface Drive {
   label: string;
@@ -185,14 +181,57 @@ export async function mountDrive(
   device: string
 ): Promise<{ success: boolean; mountpoint: string }> {
   const clean = validateDevice(device);
-  const { stdout } = await exec(MOUNT_SCRIPT, [clean]);
-  return { success: true, mountpoint: stdout.trim() };
+
+  // Get filesystem label and type
+  const { stdout: labelOut } = await exec("lsblk", ["-no", "LABEL", clean]);
+  const { stdout: fstypeOut } = await exec("lsblk", ["-no", "FSTYPE", clean]);
+  const label = labelOut.trim().replace(/\s+/g, "_") || clean.replace(/^\/dev\//, "");
+  const fstype = fstypeOut.trim();
+
+  const mountpoint = `${MEDIA_DIR}/${label}`;
+  await mkdir(mountpoint, { recursive: true });
+
+  // Mount with appropriate options per filesystem
+  const mountArgs: string[] = [];
+  switch (fstype) {
+    case "exfat":
+      mountArgs.push("-t", "exfat", "-o", "rw,relatime,fmask=0000,dmask=0000,uid=1000,gid=100");
+      break;
+    case "ntfs":
+    case "ntfs3":
+      mountArgs.push("-t", "ntfs3", "-o", "rw,relatime,uid=1000,gid=100");
+      break;
+    case "vfat":
+      mountArgs.push("-t", "vfat", "-o", "rw,relatime,uid=1000,gid=100");
+      break;
+  }
+  mountArgs.push(clean, mountpoint);
+
+  await exec("mount", mountArgs);
+  return { success: true, mountpoint };
 }
 
 export async function ejectDrive(
   device: string
 ): Promise<{ success: boolean }> {
   const clean = validateDevice(device);
-  await exec(UNMOUNT_SCRIPT, [clean]);
+
+  // Find mountpoint for this device
+  const { stdout: findOut } = await exec("findmnt", ["-n", "-o", "TARGET", clean]);
+  const mountpoint = findOut.trim();
+  if (!mountpoint) {
+    throw new Error(`${clean} is not mounted`);
+  }
+
+  await exec("sync", []);
+  await exec("umount", [mountpoint]);
+
+  // Clean up empty mount directory
+  try {
+    await rmdir(mountpoint);
+  } catch {
+    // Directory may not be empty or already removed
+  }
+
   return { success: true };
 }
