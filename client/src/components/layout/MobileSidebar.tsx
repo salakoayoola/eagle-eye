@@ -13,7 +13,7 @@ export function MobileSidebar() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
+      <SheetTrigger>
         <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden">
           <Menu className="h-4 w-4" />
         </Button>
@@ -27,11 +27,7 @@ export function MobileSidebar() {
   );
 }
 
-/** Re-uses Sidebar internals but without the `hidden md:block` classes */
 function MobileSidebarContent() {
-  // We import Sidebar but it has `hidden md:block` — for mobile we need a
-  // version that's always visible. Easiest to just render the sidebar component
-  // and override via a wrapper.
   return (
     <div className="[&>aside]:block [&>aside]:w-full [&>aside]:border-0">
       <Sidebar />

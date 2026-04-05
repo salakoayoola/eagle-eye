@@ -69,7 +69,7 @@ export function TopBar() {
         </Button>
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               {theme === "light" ? (
                 <Sun className="h-4 w-4" />
@@ -93,11 +93,11 @@ export function TopBar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-          <Link to="/settings">
+        <Link to="/settings">
+          <Button variant="ghost" size="icon" className="h-8 w-8">
             <Settings className="h-4 w-4" />
-          </Link>
-        </Button>
+          </Button>
+        </Link>
       </div>
 
       {/* Search */}

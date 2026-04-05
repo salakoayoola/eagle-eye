@@ -83,37 +83,13 @@ export function BrowsePage() {
     [navigate]
   );
 
-  const handleSelect = useCallback((entry: CopyPartyEntry) => {
-    setSelectedPaths((prev) => {
-      const next = new Set(prev);
-      if (next.has(entry.href)) {
-        next.delete(entry.href);
-      } else {
-        next.add(entry.href);
-      }
-      return next;
-    });
+  const handleFileOpen = useCallback((entry: CopyPartyEntry) => {
+    if (entry.type === "image" || entry.type === "video") {
+      setMediaEntry(entry);
+    } else {
+      window.open(fileUrl(entry.href), "_blank");
+    }
   }, []);
-
-  const handleFileOpen = useCallback(
-    (entry: CopyPartyEntry) => {
-      if (entry.type === "image" || entry.type === "video") {
-        setMediaEntry(entry);
-      } else {
-        window.open(fileUrl(entry.href), "_blank");
-      }
-    },
-    []
-  );
-
-  // Media navigation helpers
-  const mediaFiles = useMemo(
-    () => sortedFiles.filter((f) => f.type === "image" || f.type === "video"),
-    [sortedFiles]
-  );
-  const mediaIndex = mediaEntry
-    ? mediaFiles.findIndex((f) => f.href === mediaEntry.href)
-    : -1;
 
   // File operations
   const handleNewFolder = useCallback(
@@ -184,6 +160,15 @@ export function BrowsePage() {
       return 0;
     });
   }, [data, sortBy, sortOrder]);
+
+  // Media navigation helpers (must be after sortedFiles)
+  const mediaFiles = useMemo(
+    () => sortedFiles.filter((f) => f.type === "image" || f.type === "video"),
+    [sortedFiles]
+  );
+  const mediaIndex = mediaEntry
+    ? mediaFiles.findIndex((f) => f.href === mediaEntry.href)
+    : -1;
 
   return (
     <UploadZone onFiles={handleUploadFiles}>

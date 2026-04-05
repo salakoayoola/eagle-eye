@@ -12,7 +12,7 @@ const HOVER_DELAY = 500;
 export function VideoPreview({ href, name, className }: VideoPreviewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleMouseEnter = useCallback(() => {
     timerRef.current = setTimeout(() => {

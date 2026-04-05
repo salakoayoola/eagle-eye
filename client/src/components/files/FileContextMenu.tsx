@@ -10,8 +10,6 @@ import {
   Pencil,
   Trash2,
   FolderInput,
-  Copy,
-  Info,
 } from "lucide-react";
 import { fileUrl, type CopyPartyEntry } from "@/lib/copyparty";
 
@@ -34,14 +32,19 @@ export function FileContextMenu({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-48">
         {!isDir && (
-          <ContextMenuItem asChild>
-            <a href={fileUrl(entry.href)} download={entry.name}>
-              <Download className="mr-2 h-4 w-4" />
-              Download
-            </a>
+          <ContextMenuItem
+            onClick={() => {
+              const a = document.createElement("a");
+              a.href = fileUrl(entry.href);
+              a.download = entry.name;
+              a.click();
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download
           </ContextMenuItem>
         )}
         <ContextMenuItem onClick={onRename}>

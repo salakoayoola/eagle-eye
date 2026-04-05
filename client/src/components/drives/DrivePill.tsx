@@ -1,4 +1,4 @@
-import { CircleArrowUp, HardDriveDownload } from "lucide-react";
+import { CircleArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Drive } from "@/lib/companion";
 import { formatDriveSize } from "@/lib/companion";
@@ -22,7 +22,7 @@ export function DrivePill({ drive, onEject, onMount }: DrivePillProps) {
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
+      <TooltipTrigger>
         <div
           className={cn(
             "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs",

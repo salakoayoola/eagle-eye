@@ -42,11 +42,11 @@ export function ImageLightbox({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
       {/* Controls */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" asChild>
-          <a href={fileUrl(entry.href)} download={entry.name}>
+        <a href={fileUrl(entry.href)} download={entry.name}>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
             <Download className="h-5 w-5" />
-          </a>
-        </Button>
+          </Button>
+        </a>
         <Button
           variant="ghost"
           size="icon"
