@@ -1,3 +1,5 @@
+resolver 127.0.0.11 valid=10s;
+
 server {
     listen 80;
     server_name _;
@@ -11,7 +13,8 @@ server {
 
     # Proxy CopyParty API requests
     location /api/fs/ {
-        proxy_pass ${COPYPARTY_URL}/;
+        set $copyparty_backend ${COPYPARTY_URL};
+        proxy_pass $copyparty_backend/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -21,7 +24,8 @@ server {
 
     # Proxy Companion API requests
     location /api/drives {
-        proxy_pass ${COMPANION_API_URL}/api/drives;
+        set $companion_backend ${COMPANION_API_URL};
+        proxy_pass $companion_backend/api/drives;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }

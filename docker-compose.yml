@@ -8,10 +8,8 @@ services:
       - ${DATA_DIR:-./data}:/w
     ports:
       - "${COPYPARTY_PORT:-3923}:3923"
-    command: >
-      -i 0.0.0.0
-      -p 3923
-      /w:data:r:rw
+    command: -i 0.0.0.0 -p 3923 -v /w::r:rw
+    restart: unless-stopped
 
   # Companion API — drive mount/eject (optional, Linux-only)
   companion:
@@ -21,13 +19,13 @@ services:
       - MEDIA_MOUNT_DIR=${MEDIA_MOUNT_DIR:-/mnt/media}
     ports:
       - "${COMPANION_PORT:-3924}:3924"
-    # Requires privileged access for mount/unmount operations
     privileged: true
     volumes:
       - /dev:/dev:ro
       - ${MEDIA_MOUNT_DIR:-/mnt/media}:${MEDIA_MOUNT_DIR:-/mnt/media}:rshared
     profiles:
       - drives
+    restart: unless-stopped
 
   # Frontend — nginx serving React app + reverse proxy
   frontend:
@@ -38,4 +36,6 @@ services:
       - COPYPARTY_URL=http://copyparty:3923
       - COMPANION_API_URL=http://companion:3924
     depends_on:
-      - copyparty
+      copyparty:
+        condition: service_started
+    restart: unless-stopped
