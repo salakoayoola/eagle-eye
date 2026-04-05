@@ -191,7 +191,8 @@ export async function uploadFile(
     xhr.onerror = () => reject(new Error("Upload failed"));
 
     const form = new FormData();
-    form.append("file", file);
+    form.append("act", "bput");
+    form.append("f", file);
     xhr.send(form);
   });
 }
@@ -202,8 +203,12 @@ export async function createDirectory(
   name: string
 ): Promise<void> {
   const cleanPath = parentPath.replace(/^\/+|\/+$/g, "");
-  const res = await fetch(`${BASE}/${cleanPath}/?mkdir=${encodeURIComponent(name)}`, {
+  const form = new FormData();
+  form.append("act", "mkdir");
+  form.append("name", name);
+  const res = await fetch(`${BASE}/${cleanPath}/`, {
     method: "POST",
+    body: form,
   });
   if (!res.ok) throw new Error(`Failed to create directory: ${res.statusText}`);
 }
@@ -271,7 +276,8 @@ export async function createTextFile(
   const blob = new Blob([content], { type: "text/plain" });
   const file = new globalThis.File([blob], name);
   const form = new FormData();
-  form.append("file", file);
+  form.append("act", "bput");
+  form.append("f", file);
   const res = await fetch(`${BASE}/${cleanPath}/`, {
     method: "POST",
     body: form,
