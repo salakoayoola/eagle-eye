@@ -1,15 +1,17 @@
 services:
   # CopyParty — file server backend
+  # Image: https://hub.docker.com/r/copyparty/ac (includes media thumbnails)
   copyparty:
-    image: ghcr.io/9001/copyparty:latest
+    image: copyparty/ac:latest
+    user: "1000"
     volumes:
-      - ${DATA_DIR:-./data}:/data
+      - ${DATA_DIR:-./data}:/w
     ports:
       - "${COPYPARTY_PORT:-3923}:3923"
     command: >
       -i 0.0.0.0
       -p 3923
-      /data:data:r:rw
+      /w:data:r:rw
 
   # Companion API — drive mount/eject (optional, Linux-only)
   companion:
