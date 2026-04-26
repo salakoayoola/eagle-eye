@@ -532,7 +532,7 @@ export function BrowsePage() {
           onNext={() => setMediaEntry(mediaFiles[mediaIndex + 1])}
         />
       )}
-      {mediaEntry?.type === "video" && (
+      {(mediaEntry?.type === "video" || mediaEntry?.type === "raw-video") && (
         <VideoPlayer
           entry={mediaEntry}
           onClose={() => setMediaEntry(null)}

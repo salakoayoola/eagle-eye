@@ -100,9 +100,9 @@ function guessType(name: string): string {
     // PSD / design
     psd: "raw-image", ai: "raw-image", eps: "raw-image",
     // Web-playable video
-    mp4: "video", webm: "video", ogg: "video",
+    mp4: "video", webm: "video", ogg: "video", mov: "video",
     // Non-web video (needs transcoding)
-    mov: "raw-video", mkv: "raw-video", avi: "raw-video", wmv: "raw-video",
+    mkv: "raw-video", avi: "raw-video", wmv: "raw-video",
     flv: "raw-video", m4v: "raw-video", mpg: "raw-video", mpeg: "raw-video",
     "3gp": "raw-video", mts: "raw-video", m2ts: "raw-video",
     // Cinema / pro video
@@ -144,7 +144,12 @@ export function getFileExtension(name: string): string {
 
 /** Check if a file type can be previewed in Eagle Eye */
 export function isPreviewable(type: string): boolean {
-  return type === "image" || type === "video" || type === "raw-image";
+  return (
+    type === "image" ||
+    type === "video" ||
+    type === "raw-image" ||
+    type === "raw-video"
+  );
 }
 
 /** Check if a file type can attempt thumbnail generation via CopyParty */
