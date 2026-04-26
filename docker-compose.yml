@@ -13,7 +13,7 @@ services:
       - /mnt/media:/media
     ports:
       - "${COPYPARTY_PORT:-3923}:3923"
-    command: -i 0.0.0.0 -p 3923 -v /w::r:rw -v /raid:raid:r:rw -v /media:media:r:rw --rproxy -1 --xff-src lan --allow-csrf
+    command: -i 0.0.0.0 -p 3923 -v /w::r:rw -v /raid:raid:r:rw -v /media:media:r:rw --rproxy -1 --xff-src lan
     restart: unless-stopped
     profiles:
       - bundled-copyparty
