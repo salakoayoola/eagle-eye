@@ -40,16 +40,16 @@ interface FileCardProps {
 }
 
 const typeIcons: Record<string, React.ReactNode> = {
-  image: <ImageIcon className="h-10 w-10 text-muted-foreground/50" />,
-  "raw-image": <Camera className="h-10 w-10 text-muted-foreground/50" />,
-  video: <FileVideo className="h-10 w-10 text-muted-foreground/50" />,
-  "raw-video": <Film className="h-10 w-10 text-muted-foreground/50" />,
-  audio: <Music className="h-10 w-10 text-muted-foreground/50" />,
-  text: <FileText className="h-10 w-10 text-muted-foreground/50" />,
-  code: <FileCode className="h-10 w-10 text-muted-foreground/50" />,
-  pdf: <FileText className="h-10 w-10 text-muted-foreground/50" />,
-  archive: <FileArchive className="h-10 w-10 text-muted-foreground/50" />,
-  file: <File className="h-10 w-10 text-muted-foreground/50" />,
+  image: <ImageIcon className="h-8 w-8 text-muted-foreground/40" />,
+  "raw-image": <Camera className="h-8 w-8 text-muted-foreground/40" />,
+  video: <FileVideo className="h-8 w-8 text-muted-foreground/40" />,
+  "raw-video": <Film className="h-8 w-8 text-muted-foreground/40" />,
+  audio: <Music className="h-8 w-8 text-muted-foreground/40" />,
+  text: <FileText className="h-8 w-8 text-muted-foreground/40" />,
+  code: <FileCode className="h-8 w-8 text-muted-foreground/40" />,
+  pdf: <FileText className="h-8 w-8 text-muted-foreground/40" />,
+  archive: <FileArchive className="h-8 w-8 text-muted-foreground/40" />,
+  file: <File className="h-8 w-8 text-muted-foreground/40" />,
 };
 
 export function FileCard({
@@ -73,18 +73,18 @@ export function FileCard({
       data-card
       onClick={onClick}
       className={cn(
-        "group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-card text-left transition-all",
-        "hover:border-primary/30 hover:shadow-md",
-        selected && "ring-2 ring-primary border-primary/50"
+        "group flex cursor-pointer flex-col overflow-hidden rounded-sm border bg-card text-left transition-all duration-150",
+        "hover:border-primary hover:shadow-[4px_4px_0px_0px_rgba(100,116,139,0.1)]",
+        selected && "border-accent ring-1 ring-accent bg-accent/5"
       )}
     >
       {/* Thumbnail area */}
-      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-muted/50">
+      <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-muted/20 border-b">
         {onToggleSelect && (
           <button
             type="button"
             className={cn(
-              "absolute right-2 top-2 z-30 rounded-full bg-background/85 p-0.5 text-muted-foreground shadow-sm transition-opacity",
+              "absolute right-1.5 top-1.5 z-30 rounded-sm bg-background/90 p-0.5 text-muted-foreground shadow-sm transition-opacity",
               selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             )}
             onClick={(event) => {
@@ -94,9 +94,9 @@ export function FileCard({
             aria-label={selected ? "Deselect file" : "Select file"}
           >
             {selected ? (
-              <CircleCheckBig className="h-4 w-4 text-primary" />
+              <CircleCheckBig className="h-3.5 w-3.5 text-accent" />
             ) : (
-              <Circle className="h-4 w-4" />
+              <Circle className="h-3.5 w-3.5" />
             )}
           </button>
         )}
@@ -106,59 +106,63 @@ export function FileCard({
             <VideoPreview
               href={entry.href}
               name={entry.name}
-              className="h-full w-full"
+              className="h-full w-full object-cover"
             />
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity group-hover:opacity-0">
-              <div className="rounded-full bg-black/50 p-2">
-                <Play className="h-5 w-5 fill-white text-white" />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity group-hover:opacity-0 bg-black/5">
+              <div className="rounded-full bg-black/40 p-1.5 backdrop-blur-sm">
+                <Play className="h-4 w-4 fill-white text-white" />
               </div>
             </div>
-            <div className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 font-mono text-xs text-white">
+            <div className="absolute bottom-1.5 right-1.5 rounded-sm bg-black/70 px-1 py-0.5 font-mono text-[9px] font-medium text-white tracking-tight">
               {formatBytes(entry.sz)}
             </div>
           </>
         ) : supportsThumbnails(entry.type) ? (
           <div className="relative h-full w-full">
-            <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center justify-center bg-muted/10">
               {typeIcons[entry.type] || typeIcons.file}
             </div>
             <img
               src={thumbnailUrl(entry.href)}
               alt={entry.name}
-              className="relative z-10 h-full w-full object-cover"
+              className="relative z-10 h-full w-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-300"
               loading="lazy"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
             />
             {isProprietaryRawVideo && (
-              <div className="absolute bottom-2 left-2 z-20 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                No R3D Decoder
+              <div className="absolute bottom-1.5 left-1.5 z-20 rounded-sm bg-accent px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent-foreground">
+                RAW R3D
               </div>
             )}
             {(entry.type === "raw-image" || entry.type === "raw-video") && ext && (
-              <div className="absolute left-2 top-2 z-20 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-mono uppercase text-white">
+              <div className="absolute left-1.5 top-1.5 z-20 rounded-sm bg-primary/80 px-1 py-0.5 text-[9px] font-mono font-bold uppercase text-primary-foreground">
                 {ext}
               </div>
             )}
           </div>
         ) : (
-          typeIcons[entry.type] || typeIcons.file
+          <div className="flex flex-col items-center gap-2">
+            {typeIcons[entry.type] || typeIcons.file}
+            <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground/60">{ext || 'file'}</span>
+          </div>
         )}
       </div>
 
       {/* File info */}
-      <div className="flex flex-col gap-0.5 p-3">
-        <span className="truncate text-sm font-medium">{entry.name}</span>
-        <span className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-mono">{formatBytes(entry.sz)}</span>
+      <div className="flex flex-col gap-0.5 p-2.5">
+        <span className="truncate text-xs font-bold tracking-tight text-foreground/90">{entry.name}</span>
+        <div className="flex items-center justify-between mt-0.5">
+          <span className="font-mono text-[10px] font-medium text-muted-foreground/80 uppercase">
+            {formatBytes(entry.sz)}
+          </span>
           {entry.ts > 0 && (
-            <>
-              <span>&middot;</span>
-              <span>{formatDate(entry.ts)}</span>
-            </>
+            <span className="font-mono text-[9px] text-muted-foreground/60 tabular-nums">
+              {formatDate(entry.ts)}
+            </span>
           )}
-        </span>
+        </div>
       </div>
     </div>
   );

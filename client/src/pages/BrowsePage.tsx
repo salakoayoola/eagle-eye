@@ -35,6 +35,7 @@ import { ImageLightbox } from "@/components/media/ImageLightbox";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { TaskProgress, type Task, type TaskStatus } from "@/components/layout/TaskProgress";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 type EntryModifierEvent = Pick<MouseEvent, "shiftKey" | "metaKey" | "ctrlKey">;
 
@@ -170,13 +171,18 @@ export function BrowsePage() {
   const handleMove = useCallback(
     async (destPath: string) => {
       if (!moveTarget) return;
-      await moveEntry(moveTarget.href, destPath, {
-        directory: moveTarget.type === "d",
-      });
-      setMoveTarget(null);
-      if (infoEntry?.href === moveTarget.href) setInfoEntry(null);
-      invalidate();
-      invalidatePath(destPath);
+      try {
+        await moveEntry(moveTarget.href, destPath, {
+          directory: moveTarget.type === "d",
+        });
+        toast.success(`Moved ${moveTarget.name}`);
+        setMoveTarget(null);
+        if (infoEntry?.href === moveTarget.href) setInfoEntry(null);
+        invalidate();
+        invalidatePath(destPath);
+      } catch (err) {
+        toast.error(`Failed to move ${moveTarget.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
     },
     [moveTarget, invalidate, invalidatePath, infoEntry]
   );
@@ -200,11 +206,14 @@ export function BrowsePage() {
             updateTask(task.id, { progress });
           });
           updateTask(task.id, { status: "completed", progress: 100 });
+          toast.success(`Uploaded ${file.name}`);
         } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : "Upload failed";
           updateTask(task.id, {
             status: "failed",
-            error: err instanceof Error ? err.message : "Upload failed",
+            error: errorMsg,
           });
+          toast.error(`Failed to upload ${file.name}: ${errorMsg}`);
         }
       });
 
@@ -375,6 +384,7 @@ export function BrowsePage() {
     const operations = clipboard.entries.map(async (entry, index) => {
       const task = newTasks[index];
       const directory = entry.type === "d";
+      const actionLabel = clipboard.action === "copy" ? "Copied" : "Moved";
       try {
         if (clipboard.action === "copy") {
           await copyEntry(entry.href, path, { directory });
@@ -382,11 +392,14 @@ export function BrowsePage() {
           await moveEntry(entry.href, path, { directory });
         }
         updateTask(task.id, { status: "completed", progress: 100 });
+        toast.success(`${actionLabel} ${entry.name}`);
       } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Paste failed";
         updateTask(task.id, {
           status: "failed",
-          error: err instanceof Error ? err.message : "Paste failed",
+          error: errorMsg,
         });
+        toast.error(`Failed to ${clipboard.action} ${entry.name}: ${errorMsg}`);
       }
     });
 

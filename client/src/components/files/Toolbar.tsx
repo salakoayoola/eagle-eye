@@ -5,6 +5,7 @@ import {
   Plus,
   Upload,
   ClipboardPaste,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,71 +44,76 @@ export function Toolbar({
   onUpload,
   onPaste,
 }: ToolbarProps) {
-  const { clipboard } = useClipboard();
+  const { clipboard, clear: clearClipboard } = useClipboard();
 
   return (
     <div className="flex items-center gap-2">
       {/* View toggle */}
-      <div className="flex rounded-md border">
+      <div className="flex rounded-sm border bg-background p-0.5 shadow-sm">
         <Button
           variant="ghost"
           size="icon"
           className={cn(
-            "h-8 w-8 rounded-r-none",
-            viewMode === "grid" && "bg-muted"
+            "h-7 w-7 rounded-sm",
+            viewMode === "grid" && "bg-primary text-primary-foreground shadow-sm"
           )}
           onClick={() => onViewModeChange("grid")}
         >
-          <LayoutGrid className="h-4 w-4" />
+          <LayoutGrid className="h-3.5 w-3.5" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
           className={cn(
-            "h-8 w-8 rounded-l-none",
-            viewMode === "list" && "bg-muted"
+            "h-7 w-7 rounded-sm",
+            viewMode === "list" && "bg-primary text-primary-foreground shadow-sm"
           )}
           onClick={() => onViewModeChange("list")}
         >
-          <List className="h-4 w-4" />
+          <List className="h-3.5 w-3.5" />
         </Button>
       </div>
 
       {/* Sort */}
       <DropdownMenu>
         <DropdownMenuTrigger>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5">
-            <ArrowUpDown className="h-3.5 w-3.5" />
-            <span className="capitalize">{sortBy}</span>
+          <Button variant="outline" size="sm" className="h-8 gap-2 rounded-sm border-dashed font-mono text-[10px] font-bold uppercase tracking-wider">
+            <ArrowUpDown className="h-3 w-3" />
+            {sortBy}
+            <span className="text-muted-foreground/50">{sortOrder === "asc" ? "↑" : "↓"}</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => onSortChange("name")}>
-            Name {sortBy === "name" && (sortOrder === "asc" ? "↑" : "↓")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onSortChange("size")}>
-            Size {sortBy === "size" && (sortOrder === "asc" ? "↑" : "↓")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onSortChange("date")}>
-            Date {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
-          </DropdownMenuItem>
+        <DropdownMenuContent align="start" className="rounded-sm font-mono text-[10px] font-bold uppercase">
+          <DropdownMenuItem onClick={() => onSortChange("name")}>Name</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onSortChange("size")}>Size</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onSortChange("date")}>Date</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Paste (visible when clipboard has items) */}
-      {clipboard && onPaste && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={onPaste}
-        >
-          <ClipboardPaste className="h-3.5 w-3.5" />
-          Paste{" "}
-          {clipboard.entries.length > 1
-            ? `(${clipboard.entries.length})`
-            : `"${clipboard.entries[0].name}"`}
-        </Button>
+      {/* Clipboard Actions */}
+      {clipboard && (
+        <div className="flex items-center gap-1 animate-in fade-in slide-in-from-left-2">
+          {onPaste && (
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8 gap-2 rounded-sm bg-accent text-accent-foreground hover:bg-accent/90 font-mono text-[10px] font-bold uppercase tracking-wider"
+              onClick={onPaste}
+            >
+              <ClipboardPaste className="h-3.5 w-3.5" />
+              Paste ({clipboard.entries.length})
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-sm hover:bg-destructive/10 hover:text-destructive transition-colors"
+            onClick={clearClipboard}
+            title="Clear clipboard"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       )}
 
       <div className="flex-1" />
@@ -115,21 +121,24 @@ export function Toolbar({
       {/* New */}
       <DropdownMenu>
         <DropdownMenuTrigger>
-          <Button size="sm" className="h-8 gap-1.5">
+          <Button size="sm" className="h-8 gap-2 rounded-sm font-mono text-[10px] font-bold uppercase tracking-wider">
             <Plus className="h-3.5 w-3.5" />
             New
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="rounded-sm font-mono text-[10px] font-bold uppercase">
           <DropdownMenuItem onClick={onNewFolder}>New Folder</DropdownMenuItem>
-          <DropdownMenuItem onClick={onNewFile}>
-            New Text File
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onNewFile}>New Text File</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       {/* Upload */}
-      <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onUpload}>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="h-8 gap-2 rounded-sm border-2 font-mono text-[10px] font-bold uppercase tracking-wider hover:bg-muted" 
+        onClick={onUpload}
+      >
         <Upload className="h-3.5 w-3.5" />
         Upload
       </Button>

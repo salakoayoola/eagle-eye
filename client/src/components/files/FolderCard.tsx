@@ -33,18 +33,18 @@ export function FolderCard({
     <div
       onClick={onClick}
       className={cn(
-        "group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-card text-left transition-all",
-        "hover:border-primary/30 hover:shadow-md",
-        selected && "ring-2 ring-primary border-primary/50"
+        "group flex cursor-pointer flex-col overflow-hidden rounded-sm border bg-card text-left transition-all duration-150",
+        "hover:border-primary hover:shadow-[4px_4px_0px_0px_rgba(100,116,139,0.1)]",
+        selected && "border-accent ring-1 ring-accent bg-accent/5"
       )}
     >
       {/* Folder preview area */}
-      <div className="relative flex aspect-[4/3] items-center justify-center bg-muted/30">
+      <div className="relative flex aspect-square items-center justify-center bg-muted/10 border-b">
         {onToggleSelect && (
           <button
             type="button"
             className={cn(
-              "absolute right-2 top-2 z-30 rounded-full bg-background/85 p-0.5 text-muted-foreground shadow-sm transition-opacity",
+              "absolute right-1.5 top-1.5 z-30 rounded-sm bg-background/90 p-0.5 text-muted-foreground shadow-sm transition-opacity",
               selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             )}
             onClick={(event) => {
@@ -54,19 +54,19 @@ export function FolderCard({
             aria-label={selected ? "Deselect folder" : "Select folder"}
           >
             {selected ? (
-              <CircleCheckBig className="h-4 w-4 text-primary" />
+              <CircleCheckBig className="h-3.5 w-3.5 text-accent" />
             ) : (
-              <Circle className="h-4 w-4" />
+              <Circle className="h-3.5 w-3.5" />
             )}
           </button>
         )}
-        <Folder className="h-12 w-12 text-primary/60 fill-primary/10" />
+        <Folder className="h-10 w-10 text-primary/40 fill-primary/5 group-hover:text-primary/60 transition-colors" />
       </div>
 
       {/* Folder info */}
-      <div className="flex flex-col gap-0.5 p-3">
-        <span className="truncate text-sm font-medium">{entry.name}</span>
-        <span className="text-xs text-muted-foreground">
+      <div className="flex flex-col gap-0.5 p-2.5">
+        <span className="truncate text-xs font-bold tracking-tight text-foreground/90">{entry.name}</span>
+        <span className="font-mono text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider">
           {entry.num !== undefined ? `${entry.num} items` : "Folder"}
         </span>
       </div>

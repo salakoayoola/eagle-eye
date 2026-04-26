@@ -26,9 +26,9 @@ export function Sidebar() {
   // Static locations
   const locations: SidebarItem[] = [
     {
-      label: "RAID Storage",
+      label: "RAID STORAGE",
       path: "/browse/raid",
-      icon: <HardDrive className="h-4 w-4" />,
+      icon: <HardDrive className="h-3.5 w-3.5" />,
     },
   ];
 
@@ -37,92 +37,94 @@ export function Sidebar() {
   const unmountedDrives = (drives || []).filter((d) => !d.mounted);
 
   const driveLocations: SidebarItem[] = mountedDrives.map((d) => {
-    // Derive the URL segment from the actual mountpoint, since the
-    // filesystem label may contain spaces that get sanitized at mount.
     const folderName = d.mountpoint.split("/").filter(Boolean).pop() || d.label;
     return {
-      label: d.label,
+      label: d.label.toUpperCase(),
       path: `/browse/media/${folderName}`,
-      icon: <Usb className="h-4 w-4" />,
+      icon: <Usb className="h-3.5 w-3.5" />,
     };
   });
 
   const favoriteItems: SidebarItem[] = favorites.map((f) => ({
     ...f,
-    icon: <Folder className="h-4 w-4" />,
+    label: f.label.toUpperCase(),
+    icon: <Folder className="h-3.5 w-3.5" />,
   }));
 
   return (
-    <aside className="hidden w-60 shrink-0 border-r bg-card md:block">
-      <ScrollArea className="h-full p-3">
+    <aside className="hidden w-56 shrink-0 border-r bg-sidebar md:block">
+      <ScrollArea className="h-full p-2">
         {/* Favorites */}
-        <div className="mb-4">
-          <h3 className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <div className="mb-6">
+          <h3 className="mb-2 px-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
             Favorites
           </h3>
           {favoriteItems.length === 0 ? (
-            <p className="px-2 text-xs text-muted-foreground/70 italic">
-              No favorites yet
+            <p className="px-3 font-mono text-[9px] text-muted-foreground/40 uppercase">
+              No favorites
             </p>
           ) : (
-            favoriteItems.map((item) => (
+            <div className="space-y-0.5">
+              {favoriteItems.map((item) => (
+                <SidebarButton
+                  key={item.path}
+                  item={item}
+                  active={isActive(item.path)}
+                  onClick={() => navigate(item.path)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Separator className="my-4 opacity-50" />
+
+        {/* Locations */}
+        <div className="mb-6">
+          <h3 className="mb-2 px-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
+            Locations
+          </h3>
+          <div className="space-y-0.5">
+            {[...locations, ...driveLocations].map((item) => (
               <SidebarButton
                 key={item.path}
                 item={item}
                 active={isActive(item.path)}
                 onClick={() => navigate(item.path)}
               />
-            ))
-          )}
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* Locations */}
-        <div className="mb-4">
-          <h3 className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Locations
-          </h3>
-          {[...locations, ...driveLocations].map((item) => (
-            <SidebarButton
-              key={item.path}
-              item={item}
-              active={isActive(item.path)}
-              onClick={() => navigate(item.path)}
-            />
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Unmounted external drives */}
         {unmountedDrives.length > 0 && (
           <>
-            <Separator className="my-2" />
+            <Separator className="my-4 opacity-50" />
             <div>
-              <h3 className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <h3 className="mb-2 px-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
                 Available Devices
               </h3>
-              {unmountedDrives.map((drive) => (
-                <button
-                  key={drive.device}
-                  onClick={() => mountMutation.mutate(drive.device)}
-                  disabled={mountMutation.isPending}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-                    "hover:bg-accent/10 text-muted-foreground"
-                  )}
-                >
-                  <CircleDashed className="h-4 w-4 text-warning" />
-                  <span className="truncate flex-1 text-left">
-                    {drive.label}
-                  </span>
-                  <span className="text-xs">
-                    {formatDriveSize(drive.size)}
-                  </span>
-                </button>
-              ))}
-              <p className="mt-1 px-2 text-xs text-muted-foreground/70">
-                Click to mount
-              </p>
+              <div className="space-y-0.5">
+                {unmountedDrives.map((drive) => (
+                  <button
+                    key={drive.device}
+                    onClick={() => mountMutation.mutate(drive.device)}
+                    disabled={mountMutation.isPending}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-sm px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-tight transition-all",
+                      "hover:bg-muted text-muted-foreground/80 hover:text-foreground"
+                    )}
+                  >
+                    <CircleDashed className="h-3.5 w-3.5 animate-pulse text-accent" />
+                    <span className="truncate flex-1 text-left">
+                      {drive.label}
+                    </span>
+                    <span className="text-[9px] opacity-60">
+                      {formatDriveSize(drive.size)}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -144,13 +146,15 @@ function SidebarButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+        "flex w-full items-center gap-3 rounded-sm px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-tight transition-all duration-150",
         active
-          ? "border-l-2 border-primary bg-primary/5 font-medium"
-          : "hover:bg-accent/10"
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-muted-foreground/70 hover:bg-muted hover:text-foreground"
       )}
     >
-      {item.icon}
+      <span className={cn("transition-colors", active ? "text-primary-foreground" : "text-muted-foreground/50")}>
+        {item.icon}
+      </span>
       <span className="truncate">{item.label}</span>
     </button>
   );

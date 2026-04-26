@@ -32,21 +32,23 @@ export function TopBar() {
   ];
 
   return (
-    <header className="flex h-12 shrink-0 items-center border-b bg-card px-4 gap-2">
+    <header className="flex h-11 shrink-0 items-center border-b bg-card px-4 gap-2">
       {/* Mobile menu */}
       <MobileSidebar />
 
       {/* Logo */}
       <Link
         to="/"
-        className="flex items-center gap-2 font-display text-lg font-bold tracking-tight"
+        className="flex items-center gap-2 font-mono text-sm font-black tracking-tighter"
       >
-        <span className="text-primary">&#9670;</span>
-        <span>Eagle Eye</span>
+        <div className="flex h-5 w-5 items-center justify-center bg-primary text-primary-foreground rounded-sm rotate-45">
+          <span className="-rotate-45 text-[10px]">EE</span>
+        </div>
+        <span className="uppercase tracking-[0.1em]">Eagle Eye</span>
       </Link>
 
       {/* Center: Drive pills — mounted and unmounted */}
-      <div className="flex flex-1 items-center justify-center gap-2 overflow-x-auto px-4">
+      <div className="flex flex-1 items-center justify-center gap-2 overflow-x-auto px-4 scrollbar-none">
         {sortedDrives.map((drive) => (
           <DrivePill
             key={drive.device || drive.label}
@@ -58,44 +60,44 @@ export function TopBar() {
       </div>
 
       {/* Right actions */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 rounded-sm hover:bg-muted"
           onClick={() => setSearchOpen(true)}
         >
-          <Search className="h-4 w-4" />
+          <Search className="h-3.5 w-3.5" />
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-sm hover:bg-muted">
               {theme === "light" ? (
-                <Sun className="h-4 w-4" />
+                <Sun className="h-3.5 w-3.5" />
               ) : theme === "dark" ? (
-                <Moon className="h-4 w-4" />
+                <Moon className="h-3.5 w-3.5" />
               ) : (
-                <Monitor className="h-4 w-4" />
+                <Monitor className="h-3.5 w-3.5" />
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="rounded-sm font-mono text-[10px] font-bold uppercase">
             <DropdownMenuItem onClick={() => setTheme("light")}>
-              <Sun className="mr-2 h-4 w-4" /> Light
+              <Sun className="mr-2 h-3.5 w-3.5" /> Light
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setTheme("dark")}>
-              <Moon className="mr-2 h-4 w-4" /> Dark
+              <Moon className="mr-2 h-3.5 w-3.5" /> Dark
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setTheme("system")}>
-              <Monitor className="mr-2 h-4 w-4" /> System
+              <Monitor className="mr-2 h-3.5 w-3.5" /> System
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
         <Link to="/settings">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Settings className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-sm hover:bg-muted">
+            <Settings className="h-3.5 w-3.5" />
           </Button>
         </Link>
       </div>

@@ -8,6 +8,7 @@ import {
   ClipboardContext,
   useClipboardState,
 } from "@/hooks/use-clipboard";
+import { Toaster } from "sonner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +35,7 @@ function App() {
               </Route>
             </Routes>
           </BrowserRouter>
+          <Toaster richColors position="top-right" />
         </TooltipProvider>
       </ClipboardContext.Provider>
     </QueryClientProvider>
