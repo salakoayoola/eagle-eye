@@ -1,24 +1,22 @@
 # Eagle Eye
 
-A web-based file manager for personal NAS, powered by [CopyParty](https://github.com/9001/copyparty). Canva-inspired file browsing, media preview, and OS-like drive management.
+A high-performance, web-based file manager for personal NAS. Fast, resilient, and built for creative professional workflows.
 
 ![Eagle Eye](design/desktop-main-view.png)
 
 ## Features
 
-- **Canva-style file cards** with thumbnail previews (grid + list view)
-- **Video hover preview** — 500ms delay, muted loop on hover
-- **Image lightbox** with keyboard navigation (arrow keys, Escape)
-- **Video player** overlay with streaming playback
-- **RAW thumbnail support** for camera files (including `.NEF`) when backend tools are installed
-- **Graceful RAW video fallback** for proprietary codecs like `.R3D` (icon + hint)
-- **Drive management** — mount/eject removable storage (SD cards, USB drives)
-- **Drag & drop upload** with progress
-- **File operations** — create folders, text files, rename, delete
-- **Search** across your file library
-- **System-adaptive** light/dark theme
-- **Mobile responsive** with slide-out sidebar
-- **Docker Compose** deployment — one command to start
+- **Industrial Swiss Aesthetic** — Professional, high-performance UI using Industrial Grey (#64748B) and Safety Orange (#F97316).
+- **Visual File Management** — Canva-inspired cards with high-fidelity thumbnails (grid + list view).
+- **Deep Folder Uploads** — Recursively drag and drop entire directory structures with full path preservation.
+- **RAW Photography Support** — Instant high-quality previews for `.NEF`, `.ARW`, `.CR2`, and `.DNG` via internal extraction engine.
+- **Cinema Video Previews** — Auto-generated thumbnails for `.MOV`, `.MP4`, and professional codecs like `.R3D`, `.BRAW`, and `.MXF`.
+- **Integrated PDF Viewer** — View documents directly in the browser with a seamless full-screen player.
+- **Drive Management** — Native mount/eject/format controls for removable storage (SD cards, USB drives).
+- **System Task Log (`SYS_TASKS`)** — Real-time tracking of uploads, copies, and moves in a technical log-style interface.
+- **Robust Notifications** — Immediate visual confirmation for all file operations via a dedicated toast system.
+- **Search & Filter** — Rapid search across your entire file library with context-aware results.
+- **Secure & Standalone** — Zero-dependency architecture relying on native Node.js and Linux commands.
 
 ## Quick Start
 
@@ -32,7 +30,7 @@ Or manually:
 
 ```bash
 cp .env.example .env
-# Edit .env — set DATA_DIR to your files directory
+# Edit .env — set DATA_DIR to your storage root
 docker compose up -d
 # Open http://localhost:8080
 ```
@@ -40,21 +38,19 @@ docker compose up -d
 ## Architecture
 
 ```
-Eagle Eye (React + shadcn/ui)    ← Frontend (nginx)
-Companion API (Hono)             ← Drive mount/eject (optional)
-CopyParty                        ← File operations backend
+Eagle Eye (React + shadcn/ui)    ← Frontend (Nginx Proxy)
+Unified Backend (Hono + Node.js) ← File Ops + Drive Management
 ```
 
-- **Frontend:** React 19, Vite, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query
-- **Companion API:** Hono on Node.js — thin layer for drive mount/unmount/eject
-- **File backend:** CopyParty handles all file operations (list, upload, download, rename, delete, move, mkdir, search, thumbnails, streaming)
-- **Deployment:** Docker Compose with nginx reverse proxy
+- **Frontend:** React 19, Vite, TypeScript, Tailwind CSS, shadcn/ui, Sonner (Notifications)
+- **Backend:** Unified Hono server running natively on Node.js. 
+- **File System:** Direct management using native `fs` modules and standard Linux utilities (`cp`, `mv`, `rm`).
+- **Media Engine:** `exiftool` for RAW extraction and `ffmpeg` for video thumbnail generation.
 
 ## Media Preview Notes
 
-- `.mp4`: thumbnail + hover playback works via CopyParty/ffmpeg.
-- `.nef` (and other RAW images): Eagle Eye now requests thumbnails for RAW image types. The bundled CopyParty image includes `exiftool`, `libraw-tools`, and `imagemagick` for better RAW thumbnail coverage.
-- `.r3d` / `.braw` / `.ari`: these codecs need proprietary SDKs; Eagle Eye falls back to icon preview and metadata when decoding is unavailable.
+- **RAW Images**: Uses `exiftool` to extract the high-res embedded preview, bypassing the need for expensive transcoding.
+- **Cinema Formats**: Supports a wide array of professional codecs; if the browser can't play it natively, Eagle Eye provides a frame-accurate thumbnail and metadata.
 
 ## Configuration
 
@@ -62,21 +58,9 @@ Copy `.env.example` to `.env` and adjust:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATA_DIR` | `./data` | Directory to serve files from |
 | `EAGLE_EYE_PORT` | `8080` | Web interface port |
-| `COPYPARTY_PORT` | `3923` | CopyParty backend port |
-| `COMPANION_PORT` | `3924` | Companion API port |
-| `MEDIA_MOUNT_DIR` | `/mnt/media` | Where removable drives mount (Linux) |
-
-## Drive Management (Optional)
-
-Drive management requires the companion API and is Linux-only. Start with the `drives` profile:
-
-```bash
-docker compose --profile drives up -d
-```
-
-The companion API needs privileged access to mount/unmount drives. It calls system scripts at configurable paths (`MOUNT_SCRIPT`, `UNMOUNT_SCRIPT`).
+| `COMPANION_PORT` | `3924` | Unified Backend API port |
+| `MEDIA_MOUNT_DIR` | `/mnt/media` | Host mount point for removable drives |
 
 ## Development
 
@@ -86,20 +70,11 @@ cd client
 npm install
 npm run dev
 
-# Companion API
+# Unified Backend
 cd server
 npm install
 npm run dev
 ```
-
-Set `VITE_COPYPARTY_URL` to point at your CopyParty instance for local development.
-
-## Design
-
-- Amber/gold accent (#D4A574) — no blue
-- Warm gray neutrals
-- Geist (body/UI) + Satoshi (display) + Geist Mono (data) typography
-- See [DESIGN.md](DESIGN.md) for the full design system
 
 ## License
 
