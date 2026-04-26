@@ -29,6 +29,7 @@ interface FileListProps {
   onInfo?: (entry: CopyPartyEntry) => void;
   onCopy?: (entry: CopyPartyEntry) => void;
   onCut?: (entry: CopyPartyEntry) => void;
+  onNewFolder?: () => void;
 }
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -56,6 +57,7 @@ export function FileList({
   onInfo,
   onCopy,
   onCut,
+  onNewFolder,
 }: FileListProps) {
   const allEntries = [
     ...dirs.map((d) => ({ ...d, type: "d" as const })),
@@ -127,6 +129,7 @@ export function FileList({
                 onInfo={onInfo ? () => onInfo(entry) : undefined}
                 onCopy={onCopy ? () => onCopy(entry) : undefined}
                 onCut={onCut ? () => onCut(entry) : undefined}
+                onNewFolder={onNewFolder}
               >
                 {row}
               </FileContextMenu>

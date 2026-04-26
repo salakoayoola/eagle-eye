@@ -15,6 +15,7 @@ interface FolderCardProps {
   onInfo?: () => void;
   onCopy?: () => void;
   onCut?: () => void;
+  onNewFolder?: () => void;
 }
 
 export function FolderCard({
@@ -28,6 +29,7 @@ export function FolderCard({
   onInfo,
   onCopy,
   onCut,
+  onNewFolder,
 }: FolderCardProps) {
   const card = (
     <div
@@ -83,6 +85,7 @@ export function FolderCard({
         onInfo={onInfo}
         onCopy={onCopy}
         onCut={onCut}
+        onNewFolder={onNewFolder}
       >
         {card}
       </FileContextMenu>

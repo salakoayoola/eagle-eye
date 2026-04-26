@@ -15,6 +15,7 @@ interface FileGridProps {
   onInfo?: (entry: CopyPartyEntry) => void;
   onCopy?: (entry: CopyPartyEntry) => void;
   onCut?: (entry: CopyPartyEntry) => void;
+  onNewFolder?: () => void;
 }
 
 export function FileGrid({
@@ -29,11 +30,12 @@ export function FileGrid({
   onInfo,
   onCopy,
   onCut,
+  onNewFolder,
 }: FileGridProps) {
   if (dirs.length === 0 && files.length === 0) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm text-muted-foreground">
-        This folder is empty
+      <div className="flex items-center justify-center py-24 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+        Directory is empty
       </div>
     );
   }
@@ -53,6 +55,7 @@ export function FileGrid({
           onInfo={onInfo ? () => onInfo(dir) : undefined}
           onCopy={onCopy ? () => onCopy(dir) : undefined}
           onCut={onCut ? () => onCut(dir) : undefined}
+          onNewFolder={onNewFolder}
         />
       ))}
       {files.map((file) => (
@@ -68,6 +71,7 @@ export function FileGrid({
           onInfo={onInfo ? () => onInfo(file) : undefined}
           onCopy={onCopy ? () => onCopy(file) : undefined}
           onCut={onCut ? () => onCut(file) : undefined}
+          onNewFolder={onNewFolder}
         />
       ))}
     </div>

@@ -485,6 +485,7 @@ export function BrowsePage() {
                 onInfo={setInfoEntry}
                 onCopy={handleCopy}
                 onCut={handleCut}
+                onNewFolder={() => setNewFolderOpen(true)}
               />
             ) : (
               <FileList
@@ -499,6 +500,7 @@ export function BrowsePage() {
                 onInfo={setInfoEntry}
                 onCopy={handleCopy}
                 onCut={handleCut}
+                onNewFolder={() => setNewFolderOpen(true)}
               />
             )}
           </div>
