@@ -1,12 +1,14 @@
 import { useCallback, useState, useRef } from "react";
 import { Upload } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface UploadZoneProps {
   onFiles: (files: FileList) => void;
   children: React.ReactNode;
+  className?: string;
 }
 
-export function UploadZone({ onFiles, children }: UploadZoneProps) {
+export function UploadZone({ onFiles, children, className }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
 
@@ -44,7 +46,7 @@ export function UploadZone({ onFiles, children }: UploadZoneProps) {
 
   return (
     <div
-      className="relative"
+      className={cn("relative h-full w-full", className)}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
