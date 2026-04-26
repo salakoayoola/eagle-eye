@@ -6,7 +6,7 @@ services:
   copyparty:
     build: ./copyparty
     image: eagle-eye-copyparty:latest
-    user: "1000"
+    user: "1000:100"
     volumes:
       - ${DATA_DIR:-./data}:/w
       - /export/Eagle-Eye:/raid
