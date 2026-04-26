@@ -40,6 +40,8 @@ export function FileGrid({
     );
   }
 
+  const selectedCount = selectedPaths.size;
+
   return (
     <div className="grid grid-cols-2 gap-4 pb-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {dirs.map((dir) => (
@@ -56,6 +58,7 @@ export function FileGrid({
           onCopy={onCopy ? () => onCopy(dir) : undefined}
           onCut={onCut ? () => onCut(dir) : undefined}
           onNewFolder={onNewFolder}
+          selectedCount={selectedCount}
         />
       ))}
       {files.map((file) => (
@@ -72,6 +75,7 @@ export function FileGrid({
           onCopy={onCopy ? () => onCopy(file) : undefined}
           onCut={onCut ? () => onCut(file) : undefined}
           onNewFolder={onNewFolder}
+          selectedCount={selectedCount}
         />
       ))}
     </div>

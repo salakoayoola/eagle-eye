@@ -38,6 +38,7 @@ interface FileCardProps {
   onCopy?: () => void;
   onCut?: () => void;
   onNewFolder?: () => void;
+  selectedCount?: number;
 }
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -65,6 +66,7 @@ export function FileCard({
   onCopy,
   onCut,
   onNewFolder,
+  selectedCount,
 }: FileCardProps) {
   const ext = getFileExtension(entry.name);
   const isProprietaryRawVideo =
@@ -180,6 +182,7 @@ export function FileCard({
         onCopy={onCopy}
         onCut={onCut}
         onNewFolder={onNewFolder}
+        selectedCount={selectedCount}
       >
         {card}
       </FileContextMenu>

@@ -16,6 +16,7 @@ interface FolderCardProps {
   onCopy?: () => void;
   onCut?: () => void;
   onNewFolder?: () => void;
+  selectedCount?: number;
 }
 
 export function FolderCard({
@@ -30,6 +31,7 @@ export function FolderCard({
   onCopy,
   onCut,
   onNewFolder,
+  selectedCount,
 }: FolderCardProps) {
   const card = (
     <div
@@ -86,6 +88,7 @@ export function FolderCard({
         onCopy={onCopy}
         onCut={onCut}
         onNewFolder={onNewFolder}
+        selectedCount={selectedCount}
       >
         {card}
       </FileContextMenu>

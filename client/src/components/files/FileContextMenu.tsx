@@ -31,6 +31,7 @@ interface FileContextMenuProps {
   onCopy?: () => void;
   onCut?: () => void;
   onNewFolder?: () => void;
+  selectedCount?: number;
 }
 
 export function FileContextMenu({
@@ -43,23 +44,25 @@ export function FileContextMenu({
   onCopy,
   onCut,
   onNewFolder,
+  selectedCount = 1,
 }: FileContextMenuProps) {
   const isDir = entry.type === "d";
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const favPath = `/browse/${entry.href}`;
   const isFav = isDir && isFavorite(favPath);
+  const multiple = selectedCount > 1;
 
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-52 rounded-sm font-mono text-[10px] font-bold uppercase">
-        {onInfo && (
+        {!multiple && onInfo && (
           <ContextMenuItem onClick={onInfo}>
             <Info className="mr-2 h-3.5 w-3.5" />
             Get Info
           </ContextMenuItem>
         )}
-        {!isDir && (
+        {!multiple && !isDir && (
           <ContextMenuItem
             onClick={() => {
               const a = document.createElement("a");
@@ -72,7 +75,7 @@ export function FileContextMenu({
             Download
           </ContextMenuItem>
         )}
-        {!isDir && (
+        {!multiple && !isDir && (
           <ContextMenuItem
             onClick={() => window.open(fileUrl(entry.href), "_blank")}
           >
@@ -80,7 +83,8 @@ export function FileContextMenu({
             Open in New Tab
           </ContextMenuItem>
         )}
-        <ContextMenuSeparator />
+        {!multiple && <ContextMenuSeparator />}
+        
         {onNewFolder && (
           <ContextMenuItem onClick={onNewFolder}>
             <FolderPlus className="mr-2 h-3.5 w-3.5 text-accent" />
@@ -90,24 +94,26 @@ export function FileContextMenu({
         {onCopy && (
           <ContextMenuItem onClick={onCopy}>
             <Copy className="mr-2 h-3.5 w-3.5" />
-            Copy
+            {multiple ? `Copy ${selectedCount} items` : 'Copy'}
           </ContextMenuItem>
         )}
         {onCut && (
           <ContextMenuItem onClick={onCut}>
             <Scissors className="mr-2 h-3.5 w-3.5" />
-            Cut
+            {multiple ? `Cut ${selectedCount} items` : 'Cut'}
           </ContextMenuItem>
         )}
         <ContextMenuItem onClick={onMove}>
           <FolderInput className="mr-2 h-3.5 w-3.5" />
-          Move to...
+          {multiple ? `Move ${selectedCount} items...` : 'Move to...'}
         </ContextMenuItem>
-        <ContextMenuItem onClick={onRename}>
-          <Pencil className="mr-2 h-3.5 w-3.5" />
-          Rename
-        </ContextMenuItem>
-        {isDir && (
+        {!multiple && (
+          <ContextMenuItem onClick={onRename}>
+            <Pencil className="mr-2 h-3.5 w-3.5" />
+            Rename
+          </ContextMenuItem>
+        )}
+        {!multiple && isDir && (
           <>
             <ContextMenuSeparator />
             {isFav ? (
@@ -128,7 +134,7 @@ export function FileContextMenu({
         <ContextMenuSeparator />
         <ContextMenuItem onClick={onDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10">
           <Trash2 className="mr-2 h-3.5 w-3.5" />
-          Delete
+          {multiple ? `Delete ${selectedCount} items` : 'Delete'}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

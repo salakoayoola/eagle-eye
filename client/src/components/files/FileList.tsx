@@ -64,6 +64,8 @@ export function FileList({
     ...files,
   ];
 
+  const selectedCount = selectedPaths.size;
+
   return (
     <div className="rounded-sm border overflow-hidden">
       {/* Header */}
@@ -130,6 +132,7 @@ export function FileList({
                 onCopy={onCopy ? () => onCopy(entry) : undefined}
                 onCut={onCut ? () => onCut(entry) : undefined}
                 onNewFolder={onNewFolder}
+                selectedCount={selectedCount}
               >
                 {row}
               </FileContextMenu>

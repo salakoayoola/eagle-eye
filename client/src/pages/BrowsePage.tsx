@@ -83,6 +83,43 @@ export function BrowsePage() {
   // Info sidebar state
   const [infoEntry, setInfoEntry] = useState<CopyPartyEntry | null>(null);
 
+  // Sort entries (moved up for handlers)
+  const sortedDirs = useMemo(() => {
+    if (!data) return [];
+    return [...data.dirs].sort((a, b) => {
+      const mul = sortOrder === "asc" ? 1 : -1;
+      if (sortBy === "name") return mul * a.name.localeCompare(b.name);
+      if (sortBy === "date") return mul * (a.ts - b.ts);
+      return mul * a.name.localeCompare(b.name);
+    });
+  }, [data, sortBy, sortOrder]);
+
+  const sortedFiles = useMemo(() => {
+    if (!data) return [];
+    return [...data.files].sort((a, b) => {
+      const mul = sortOrder === "asc" ? 1 : -1;
+      if (sortBy === "name") return mul * a.name.localeCompare(b.name);
+      if (sortBy === "size") return mul * (a.sz - b.sz);
+      if (sortBy === "date") return mul * (a.ts - b.ts);
+      return 0;
+    });
+  }, [data, sortBy, sortOrder]);
+
+  const orderedEntries = useMemo<CopyPartyEntry[]>(
+    () => [...sortedDirs.map((d) => ({ ...d, type: "d" })), ...sortedFiles],
+    [sortedDirs, sortedFiles]
+  );
+
+  const entryByHref = useMemo(
+    () => new Map(orderedEntries.map((entry) => [entry.href, entry])),
+    [orderedEntries]
+  );
+
+  const entryIndexByHref = useMemo(
+    () => new Map(orderedEntries.map((entry, index) => [entry.href, index])),
+    [orderedEntries]
+  );
+
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["files", path] });
   }, [queryClient, path]);
@@ -156,35 +193,91 @@ export function BrowsePage() {
   );
 
   const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return;
-    await deleteEntry(deleteTarget.href, { directory: deleteTarget.type === "d" });
-    if (infoEntry?.href === deleteTarget.href) setInfoEntry(null);
+    const targets = selectedPaths.size > 0 
+      ? Array.from(selectedPaths).map(href => entryByHref.get(href)).filter((e): e is CopyPartyEntry => !!e)
+      : deleteTarget ? [deleteTarget] : [];
+
+    if (targets.length === 0) return;
+
+    const deletePromises = targets.map(async (target) => {
+      try {
+        await deleteEntry(target.href, { directory: target.type === "d" });
+        return { success: true, name: target.name };
+      } catch (err) {
+        return { success: false, name: target.name, error: err instanceof Error ? err.message : "Unknown error" };
+      }
+    });
+
+    const results = await Promise.all(deletePromises);
+    const successful = results.filter(r => r.success);
+    const failed = results.filter(r => !r.success);
+
+    if (successful.length > 0) {
+      toast.success(successful.length === 1 
+        ? `Deleted ${successful[0].name}` 
+        : `Deleted ${successful.length} items`);
+    }
+
+    if (failed.length > 0) {
+      toast.error(`Failed to delete ${failed.length} items`);
+    }
+
+    // Cleanup UI state
+    if (infoEntry && targets.some(t => t.href === infoEntry.href)) {
+      setInfoEntry(null);
+    }
+    
     setDeleteTarget(null);
     setSelectedPaths((prev) => {
       const next = new Set(prev);
-      next.delete(deleteTarget.href);
+      targets.forEach(t => next.delete(t.href));
       return next;
     });
+    
     invalidate();
-  }, [deleteTarget, invalidate, infoEntry]);
+  }, [deleteTarget, selectedPaths, entryByHref, infoEntry, invalidate]);
 
   const handleMove = useCallback(
     async (destPath: string) => {
-      if (!moveTarget) return;
-      try {
-        await moveEntry(moveTarget.href, destPath, {
-          directory: moveTarget.type === "d",
-        });
-        toast.success(`Moved ${moveTarget.name}`);
-        setMoveTarget(null);
-        if (infoEntry?.href === moveTarget.href) setInfoEntry(null);
-        invalidate();
-        invalidatePath(destPath);
-      } catch (err) {
-        toast.error(`Failed to move ${moveTarget.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const targets = selectedPaths.size > 0 
+        ? Array.from(selectedPaths).map(href => entryByHref.get(href)).filter((e): e is CopyPartyEntry => !!e)
+        : moveTarget ? [moveTarget] : [];
+
+      if (targets.length === 0) return;
+
+      const movePromises = targets.map(async (target) => {
+        try {
+          await moveEntry(target.href, destPath, { directory: target.type === "d" });
+          return { success: true, name: target.name };
+        } catch (err) {
+          return { success: false, name: target.name, error: err instanceof Error ? err.message : "Unknown error" };
+        }
+      });
+
+      const results = await Promise.all(movePromises);
+      const successful = results.filter(r => r.success);
+      const failed = results.filter(r => !r.success);
+
+      if (successful.length > 0) {
+        toast.success(successful.length === 1 
+          ? `Moved ${successful[0].name}` 
+          : `Moved ${successful.length} items`);
       }
+
+      if (failed.length > 0) {
+        toast.error(`Failed to move ${failed.length} items`);
+      }
+
+      // Cleanup UI state
+      if (infoEntry && targets.some(t => t.href === infoEntry.href)) {
+        setInfoEntry(null);
+      }
+      
+      setMoveTarget(null);
+      invalidate();
+      invalidatePath(destPath);
     },
-    [moveTarget, invalidate, invalidatePath, infoEntry]
+    [moveTarget, selectedPaths, entryByHref, invalidate, invalidatePath, infoEntry]
   );
 
   const handleUploadFiles = useCallback(
@@ -221,43 +314,6 @@ export function BrowsePage() {
       invalidate();
     },
     [path, invalidate, updateTask]
-  );
-
-  // Sort entries
-  const sortedDirs = useMemo(() => {
-    if (!data) return [];
-    return [...data.dirs].sort((a, b) => {
-      const mul = sortOrder === "asc" ? 1 : -1;
-      if (sortBy === "name") return mul * a.name.localeCompare(b.name);
-      if (sortBy === "date") return mul * (a.ts - b.ts);
-      return mul * a.name.localeCompare(b.name);
-    });
-  }, [data, sortBy, sortOrder]);
-
-  const sortedFiles = useMemo(() => {
-    if (!data) return [];
-    return [...data.files].sort((a, b) => {
-      const mul = sortOrder === "asc" ? 1 : -1;
-      if (sortBy === "name") return mul * a.name.localeCompare(b.name);
-      if (sortBy === "size") return mul * (a.sz - b.sz);
-      if (sortBy === "date") return mul * (a.ts - b.ts);
-      return 0;
-    });
-  }, [data, sortBy, sortOrder]);
-
-  const orderedEntries = useMemo<CopyPartyEntry[]>(
-    () => [...sortedDirs.map((d) => ({ ...d, type: "d" })), ...sortedFiles],
-    [sortedDirs, sortedFiles]
-  );
-
-  const entryByHref = useMemo(
-    () => new Map(orderedEntries.map((entry) => [entry.href, entry])),
-    [orderedEntries]
-  );
-
-  const entryIndexByHref = useMemo(
-    () => new Map(orderedEntries.map((entry, index) => [entry.href, index])),
-    [orderedEntries]
   );
 
   const selectRange = useCallback(
