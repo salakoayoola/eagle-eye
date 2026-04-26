@@ -6,6 +6,8 @@ import {
   Upload,
   ClipboardPaste,
   X,
+  FileUp,
+  FolderUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +31,8 @@ interface ToolbarProps {
   onSortChange: (by: SortBy) => void;
   onNewFolder: () => void;
   onNewFile: () => void;
-  onUpload: () => void;
+  onUploadFiles: () => void;
+  onUploadFolder: () => void;
   onPaste?: () => void;
 }
 
@@ -41,7 +44,8 @@ export function Toolbar({
   onSortChange,
   onNewFolder,
   onNewFile,
-  onUpload,
+  onUploadFiles,
+  onUploadFolder,
   onPaste,
 }: ToolbarProps) {
   const { clipboard, clear: clearClipboard } = useClipboard();
@@ -133,15 +137,28 @@ export function Toolbar({
       </DropdownMenu>
 
       {/* Upload */}
-      <Button 
-        variant="outline" 
-        size="sm" 
-        className="h-8 gap-2 rounded-sm border-2 font-mono text-[10px] font-bold uppercase tracking-wider hover:bg-muted" 
-        onClick={onUpload}
-      >
-        <Upload className="h-3.5 w-3.5" />
-        Upload
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 gap-2 rounded-sm border-2 font-mono text-[10px] font-bold uppercase tracking-wider hover:bg-muted"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Upload
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="rounded-sm font-mono text-[10px] font-bold uppercase">
+          <DropdownMenuItem onClick={onUploadFiles} className="gap-2">
+            <FileUp className="h-3.5 w-3.5" />
+            Files
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onUploadFolder} className="gap-2">
+            <FolderUp className="h-3.5 w-3.5" />
+            Folder
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

@@ -45,6 +45,7 @@ export function BrowsePage() {
   const queryClient = useQueryClient();
   const path = splat || "raid";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading, error } = useFiles(path);
   const { clipboard, copy, cut, clear: clearClipboard } = useClipboard();
@@ -281,36 +282,43 @@ export function BrowsePage() {
   );
 
   const handleUploadFiles = useCallback(
-    async (files: FileList) => {
+    async (files: File[] | FileList) => {
       const fileArray = Array.from(files);
       const newTasks: Task[] = fileArray.map((file) => ({
-        id: `upload-${file.name}-${Date.now()}`,
-        name: `Uploading ${file.name}`,
+        id: `upload-${file.webkitRelativePath || file.name}-${Date.now()}-${Math.random()}`,
+        name: `Uploading ${file.webkitRelativePath || file.name}`,
         status: "running" as TaskStatus,
         progress: 0,
       }));
 
       setTasks((prev) => [...newTasks, ...prev]);
 
-      const uploads = fileArray.map(async (file, index) => {
-        const task = newTasks[index];
-        try {
-          await uploadFile(path, file, (progress) => {
-            updateTask(task.id, { progress });
-          });
-          updateTask(task.id, { status: "completed", progress: 100 });
-          toast.success(`Uploaded ${file.name}`);
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : "Upload failed";
-          updateTask(task.id, {
-            status: "failed",
-            error: errorMsg,
-          });
-          toast.error(`Failed to upload ${file.name}: ${errorMsg}`);
+      const CONCURRENCY_LIMIT = 4;
+      const queue = [...fileArray.map((f, i) => ({ file: f, task: newTasks[i] }))];
+      
+      const workers = Array(Math.min(CONCURRENCY_LIMIT, queue.length)).fill(null).map(async () => {
+        while (queue.length > 0) {
+          const item = queue.shift();
+          if (!item) break;
+          const { file, task } = item;
+          try {
+            await uploadFile(path, file, (progress) => {
+              updateTask(task.id, { progress });
+            });
+            updateTask(task.id, { status: "completed", progress: 100 });
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : "Upload failed";
+            updateTask(task.id, {
+              status: "failed",
+              error: errorMsg,
+            });
+            toast.error(`Failed to upload ${file.name}: ${errorMsg}`);
+          }
         }
       });
 
-      await Promise.allSettled(uploads);
+      await Promise.all(workers);
+      toast.success(`Upload batch complete`);
       invalidate();
     },
     [path, invalidate, updateTask]
@@ -497,6 +505,19 @@ export function BrowsePage() {
               e.target.value = "";
             }}
           />
+          {/* Hidden folder input */}
+          <input
+            ref={folderInputRef}
+            type="file"
+            multiple
+            // @ts-ignore
+            webkitdirectory=""
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) handleUploadFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
 
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             <div className="sticky top-0 z-20 -mx-4 mb-4 border-b bg-background/95 px-4 pb-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -511,7 +532,8 @@ export function BrowsePage() {
                 onSortChange={handleSortChange}
                 onNewFolder={() => setNewFolderOpen(true)}
                 onNewFile={() => setNewFileOpen(true)}
-                onUpload={() => fileInputRef.current?.click()}
+                onUploadFiles={() => fileInputRef.current?.click()}
+                onUploadFolder={() => folderInputRef.current?.click()}
                 onPaste={handlePaste}
               />
             </div>

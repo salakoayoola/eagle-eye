@@ -196,13 +196,24 @@ export function formatBytes(bytes: number): string {
 /** Upload a file to the given directory */
 export async function uploadFile(
   dirPath: string,
-  file: globalThis.File,
+  file: File,
   onProgress?: (pct: number) => void
 ): Promise<void> {
-  const cleanPath = dirPath.replace(/^\/+|\/+$/g, "");
+  const cleanDirPath = dirPath.replace(/^\/+|\/+$/g, "");
+  
+  // Handle folder structure if webkitRelativePath is present
+  let destPath = cleanDirPath;
+  if (file.webkitRelativePath) {
+    const parts = file.webkitRelativePath.split("/");
+    if (parts.length > 1) {
+      const subPath = parts.slice(0, -1).map(encodeURIComponent).join("/");
+      destPath = destPath ? `${destPath}/${subPath}` : subPath;
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${BASE}/${cleanPath}/`);
+    xhr.open("POST", `${BASE}/${destPath}/`);
 
     if (onProgress) {
       xhr.upload.onprogress = (e) => {
@@ -212,9 +223,9 @@ export async function uploadFile(
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`Upload failed: ${xhr.status}`));
+      else reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
     };
-    xhr.onerror = () => reject(new Error("Upload failed"));
+    xhr.onerror = () => reject(new Error("Network error during upload"));
 
     const form = new FormData();
     form.append("act", "bput");
