@@ -33,6 +33,7 @@ import {
 } from "@/lib/copyparty";
 import { ImageLightbox } from "@/components/media/ImageLightbox";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
+import { TaskProgress, type Task, type TaskStatus } from "@/components/layout/TaskProgress";
 import { Loader2 } from "lucide-react";
 
 type EntryModifierEvent = Pick<MouseEvent, "shiftKey" | "metaKey" | "ctrlKey">;
@@ -54,6 +55,19 @@ export function BrowsePage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+
+  // Task progress state
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  const updateTask = useCallback((id: string, updates: Partial<Task>) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
+    );
+  }, []);
+
+  const clearTask = useCallback((id: string) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   // Dialog states
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -169,11 +183,35 @@ export function BrowsePage() {
 
   const handleUploadFiles = useCallback(
     async (files: FileList) => {
-      const uploads = Array.from(files).map((file) => uploadFile(path, file));
+      const fileArray = Array.from(files);
+      const newTasks: Task[] = fileArray.map((file) => ({
+        id: `upload-${file.name}-${Date.now()}`,
+        name: `Uploading ${file.name}`,
+        status: "running" as TaskStatus,
+        progress: 0,
+      }));
+
+      setTasks((prev) => [...newTasks, ...prev]);
+
+      const uploads = fileArray.map(async (file, index) => {
+        const task = newTasks[index];
+        try {
+          await uploadFile(path, file, (progress) => {
+            updateTask(task.id, { progress });
+          });
+          updateTask(task.id, { status: "completed", progress: 100 });
+        } catch (err) {
+          updateTask(task.id, {
+            status: "failed",
+            error: err instanceof Error ? err.message : "Upload failed",
+          });
+        }
+      });
+
       await Promise.allSettled(uploads);
       invalidate();
     },
-    [path, invalidate]
+    [path, invalidate, updateTask]
   );
 
   // Sort entries
@@ -325,29 +363,45 @@ export function BrowsePage() {
   const handlePaste = useCallback(async () => {
     if (!clipboard) return;
 
-    try {
-      for (const entry of clipboard.entries) {
-        const directory = entry.type === "d";
+    const newTasks: Task[] = clipboard.entries.map((entry) => ({
+      id: `paste-${entry.name}-${Date.now()}`,
+      name: `${clipboard.action === "copy" ? "Copying" : "Moving"} ${entry.name}`,
+      status: "running" as TaskStatus,
+      progress: 0,
+    }));
+
+    setTasks((prev) => [...newTasks, ...prev]);
+
+    const operations = clipboard.entries.map(async (entry, index) => {
+      const task = newTasks[index];
+      const directory = entry.type === "d";
+      try {
         if (clipboard.action === "copy") {
           await copyEntry(entry.href, path, { directory });
         } else {
           await moveEntry(entry.href, path, { directory });
         }
+        updateTask(task.id, { status: "completed", progress: 100 });
+      } catch (err) {
+        updateTask(task.id, {
+          status: "failed",
+          error: err instanceof Error ? err.message : "Paste failed",
+        });
       }
+    });
 
-      // Invalidate both source and destination
-      invalidate();
-      if (clipboard.sourcePath !== path) {
-        invalidatePath(clipboard.sourcePath);
-      }
+    await Promise.allSettled(operations);
 
-      if (clipboard.action === "cut") {
-        clearClipboard();
-      }
-    } catch (err) {
-      console.error("Paste failed:", err);
+    // Invalidate both source and destination
+    invalidate();
+    if (clipboard.sourcePath !== path) {
+      invalidatePath(clipboard.sourcePath);
     }
-  }, [clipboard, path, invalidate, invalidatePath, clearClipboard]);
+
+    if (clipboard.action === "cut") {
+      clearClipboard();
+    }
+  }, [clipboard, path, invalidate, invalidatePath, clearClipboard, updateTask]);
 
   // Media navigation helpers (must be after sortedFiles)
   const mediaFiles = useMemo(
@@ -505,6 +559,12 @@ export function BrowsePage() {
           onSubmit={handleMove}
         />
       )}
+
+      <TaskProgress
+        tasks={tasks}
+        onClear={clearTask}
+        onClearAll={() => setTasks([])}
+      />
     </UploadZone>
   );
 }
