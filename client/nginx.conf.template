@@ -2,7 +2,7 @@ resolver 127.0.0.11 valid=10s;
 
 server {
     listen 80;
-    server_name _;
+    server_name eagle-eye.emu-alligator.ts.net bm-nas-01.emu-alligator.ts.net localhost;
     root /usr/share/nginx/html;
     index index.html;
 
@@ -11,34 +11,19 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Proxy CopyParty API requests
-    location /api/fs/ {
-        set $copyparty_backend ${COPYPARTY_URL};
-        rewrite ^/api/fs/(.*) /$1 break;
-        proxy_pass $copyparty_backend;
+    # Unified API (File System + Drive Management)
+    location /api/ {
+        set $backend http://companion:3924;
+        proxy_pass $backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
         
-        # Strip Origin to bypass CopyParty CORS check
-        proxy_set_header Origin "";
-        
-        proxy_buffering off;
+        # Support large uploads
         client_max_body_size 0;
-    }
-
-    # Proxy Companion API requests
-    location /api/drives {
-        set $companion_backend ${COMPANION_API_URL};
-        rewrite ^/api/(.*) /api/$1 break;
-        proxy_pass $companion_backend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_request_buffering off;
     }
 
     # Cache static assets

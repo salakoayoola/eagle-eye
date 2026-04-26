@@ -184,9 +184,7 @@ export function BrowsePage() {
   const handleRename = useCallback(
     async (newName: string) => {
       if (!renameTarget) return;
-      await renameEntry(renameTarget.href, newName, {
-        directory: renameTarget.type === "d",
-      });
+      await renameEntry(renameTarget.href, newName);
       setRenameTarget(null);
       if (infoEntry?.href === renameTarget.href) setInfoEntry(null);
       invalidate();
@@ -203,7 +201,7 @@ export function BrowsePage() {
 
     const deletePromises = targets.map(async (target) => {
       try {
-        await deleteEntry(target.href, { directory: target.type === "d" });
+        await deleteEntry(target.href);
         return { success: true, name: target.name };
       } catch (err) {
         return { success: false, name: target.name, error: err instanceof Error ? err.message : "Unknown error" };
@@ -249,7 +247,7 @@ export function BrowsePage() {
 
       const movePromises = targets.map(async (target) => {
         try {
-          await moveEntry(target.href, destPath, { directory: target.type === "d" });
+          await moveEntry(target.href, destPath);
           return { success: true, name: target.name };
         } catch (err) {
           return { success: false, name: target.name, error: err instanceof Error ? err.message : "Unknown error" };
@@ -448,13 +446,12 @@ export function BrowsePage() {
 
     const operations = clipboard.entries.map(async (entry, index) => {
       const task = newTasks[index];
-      const directory = entry.type === "d";
       const actionLabel = clipboard.action === "copy" ? "Copied" : "Moved";
       try {
         if (clipboard.action === "copy") {
-          await copyEntry(entry.href, path, { directory });
+          await copyEntry(entry.href, path);
         } else {
-          await moveEntry(entry.href, path, { directory });
+          await moveEntry(entry.href, path);
         }
         updateTask(task.id, { status: "completed", progress: 100 });
         toast.success(`${actionLabel} ${entry.name}`);

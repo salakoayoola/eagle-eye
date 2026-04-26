@@ -1,10 +1,9 @@
 /**
- * CopyParty API client.
- * In production, nginx proxies /api/fs/* → CopyParty.
- * In dev, VITE_COPYPARTY_URL can point directly at the CopyParty instance.
+ * Eagle Eye API client.
+ * In production, nginx proxies /api/fs/* → Node.js server.
  */
 
-const BASE = import.meta.env.VITE_COPYPARTY_URL || "/api/fs";
+const BASE = "/api/fs";
 
 export interface CopyPartyEntry {
   name: string;
@@ -74,7 +73,7 @@ export function isPreviewable(type: string): boolean {
   );
 }
 
-/** Check if a file type can attempt thumbnail generation via CopyParty */
+/** Check if a file type can attempt thumbnail generation */
 export function supportsThumbnails(type: string): boolean {
   return (
     type === "image" ||
@@ -86,45 +85,34 @@ export function supportsThumbnails(type: string): boolean {
 
 /** Get raw file URL */
 export function fileUrl(href: string): string {
-  return `${BASE}/${href}`;
+  return `${BASE}/raw/${href}`;
 }
 
-/** Get thumbnail URL */
+/** Get thumbnail URL (Using raw for now as we removed CopyParty) */
 export function thumbnailUrl(href: string): string {
-  return `${BASE}/${href}?th`;
+  return `${BASE}/raw/${href}`;
 }
 
 /** List directory contents */
 export async function listDirectory(path: string): Promise<CopyPartyListing> {
   const cleanPath = path.replace(/^\/+|\/+$/g, "");
-  const res = await fetch(`${BASE}/${cleanPath}?ls`);
-  if (!res.ok) throw new Error(`Failed to list directory: ${res.statusText}`);
+  const res = await fetch(`${BASE}/ls/${cleanPath}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || `Failed to list directory: ${res.statusText}`);
+  }
 
   const data = await res.json();
 
   return {
-    dirs: (data.dirs || [])
-      .filter((d: any) => d && d.href)
-      .map((d: any) => {
-        const name = d.href.replace(/\/+$/, "");
-        return {
-          name,
-          href: cleanPath ? `${cleanPath}/${name}` : name,
-          sz: d.sz || 0,
-          ts: d.ts || 0,
-          num: d.tags?.[".files"],
-          type: "d",
-        };
-      }),
-    files: (data.files || [])
-      .filter((f: any) => f && f.href)
-      .map((f: any) => ({
-        name: f.href,
-        href: cleanPath ? `${cleanPath}/${f.href}` : f.href,
-        sz: f.sz || 0,
-        ts: f.ts || 0,
-        type: guessType(f.href),
-      })),
+    dirs: (data.dirs || []).map((d: any) => ({
+      ...d,
+      type: "d",
+    })),
+    files: (data.files || []).map((f: any) => ({
+      ...f,
+      type: guessType(f.name),
+    })),
   };
 }
 
@@ -144,19 +132,9 @@ export async function uploadFile(
 ): Promise<void> {
   const cleanDirPath = dirPath.replace(/^\/+|\/+$/g, "");
   
-  // Handle folder structure if webkitRelativePath is present
-  let destPath = cleanDirPath;
-  if (file.webkitRelativePath) {
-    const parts = file.webkitRelativePath.split("/");
-    if (parts.length > 1) {
-      const subPath = parts.slice(0, -1).map(encodeURIComponent).join("/");
-      destPath = destPath ? `${destPath}/${subPath}` : subPath;
-    }
-  }
-
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${BASE}/${destPath}/`);
+    xhr.open("POST", `${BASE}/upload/${cleanDirPath}`);
 
     if (onProgress) {
       xhr.upload.onprogress = (e) => {
@@ -171,24 +149,12 @@ export async function uploadFile(
     xhr.onerror = () => reject(new Error("Network error during upload"));
 
     const form = new FormData();
-    form.append("act", "bput");
     form.append("f", file);
+    if (file.webkitRelativePath) {
+      form.append("path", file.webkitRelativePath);
+    }
     xhr.send(form);
   });
-}
-
-interface EntryPathOptions {
-  directory?: boolean;
-}
-
-function normalizeEntryPath(path: string, options?: EntryPathOptions): string {
-  const clean = path.replace(/^\/+|\/+$/g, "");
-  if (!options?.directory) return clean;
-  return clean ? `${clean}/` : clean;
-}
-
-function getEntryName(path: string): string {
-  return path.replace(/^\/+|\/+$/g, "").split("/").pop() || "";
 }
 
 /** Create a directory */
@@ -198,10 +164,8 @@ export async function createDirectory(
 ): Promise<void> {
   const cleanParent = parentPath.replace(/^\/+|\/+$/g, "");
   const form = new FormData();
-  form.append("act", "mkdir");
   form.append("name", name);
-  const url = cleanParent ? `${BASE}/${cleanParent}/` : `${BASE}/`;
-  const res = await fetch(url, {
+  const res = await fetch(`${BASE}/mkdir/${cleanParent}`, {
     method: "POST",
     body: form,
   });
@@ -211,10 +175,9 @@ export async function createDirectory(
 /** Delete a file or directory */
 export async function deleteEntry(
   path: string,
-  options?: EntryPathOptions
 ): Promise<void> {
-  const cleanPath = normalizeEntryPath(path, options);
-  const res = await fetch(`${BASE}/${cleanPath}?delete`, { method: "POST" });
+  const cleanPath = path.replace(/^\/+|\/+$/g, "");
+  const res = await fetch(`${BASE}/delete/${cleanPath}`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to delete: ${res.statusText}`);
 }
 
@@ -222,17 +185,18 @@ export async function deleteEntry(
 export async function renameEntry(
   path: string,
   newName: string,
-  options?: EntryPathOptions
 ): Promise<void> {
-  const cleanPath = normalizeEntryPath(path, options);
-  const parts = cleanPath.replace(/\/+$/, "").split("/");
-  const parentPath = parts.slice(0, -1).join("/");
-  const res = await fetch(
-    `${BASE}/${cleanPath}?move=${encodeURIComponent(
-      parentPath ? parentPath + "/" + newName : newName
-    )}`,
-    { method: "POST" }
-  );
+  const cleanPath = path.replace(/^\/+|\/+$/g, "");
+  const parts = cleanPath.split("/");
+  parts[parts.length - 1] = newName;
+  const destPath = parts.join("/");
+
+  const form = new FormData();
+  form.append("dest", destPath);
+  const res = await fetch(`${BASE}/move/${cleanPath}`, {
+    method: "POST",
+    body: form,
+  });
   if (!res.ok) throw new Error(`Failed to rename: ${res.statusText}`);
 }
 
@@ -240,15 +204,18 @@ export async function renameEntry(
 export async function moveEntry(
   srcPath: string,
   destDir: string,
-  options?: EntryPathOptions
 ): Promise<void> {
-  const cleanSrc = normalizeEntryPath(srcPath, options);
-  const cleanDest = destDir.replace(/^\/+|\/+$/g, "");
-  const name = getEntryName(srcPath);
-  const res = await fetch(
-    `${BASE}/${cleanSrc}?move=${encodeURIComponent(cleanDest + "/" + name)}`,
-    { method: "POST" }
-  );
+  const cleanSrc = srcPath.replace(/^\/+|\/+$/g, "");
+  const cleanDestDir = destDir.replace(/^\/+|\/+$/g, "");
+  const name = srcPath.split("/").pop() || "";
+  const finalDest = cleanDestDir ? `${cleanDestDir}/${name}` : name;
+
+  const form = new FormData();
+  form.append("dest", finalDest);
+  const res = await fetch(`${BASE}/move/${cleanSrc}`, {
+    method: "POST",
+    body: form,
+  });
   if (!res.ok) throw new Error(`Failed to move: ${res.statusText}`);
 }
 
@@ -256,15 +223,18 @@ export async function moveEntry(
 export async function copyEntry(
   srcPath: string,
   destDir: string,
-  options?: EntryPathOptions
 ): Promise<void> {
-  const cleanSrc = normalizeEntryPath(srcPath, options);
-  const cleanDest = destDir.replace(/^\/+|\/+$/g, "");
-  const name = getEntryName(srcPath);
-  const res = await fetch(
-    `${BASE}/${cleanSrc}?copy=${encodeURIComponent(cleanDest + "/" + name)}`,
-    { method: "POST" }
-  );
+  const cleanSrc = srcPath.replace(/^\/+|\/+$/g, "");
+  const cleanDestDir = destDir.replace(/^\/+|\/+$/g, "");
+  const name = srcPath.split("/").pop() || "";
+  const finalDest = cleanDestDir ? `${cleanDestDir}/${name}` : name;
+
+  const form = new FormData();
+  form.append("dest", finalDest);
+  const res = await fetch(`${BASE}/copy/${cleanSrc}`, {
+    method: "POST",
+    body: form,
+  });
   if (!res.ok) throw new Error(`Failed to copy: ${res.statusText}`);
 }
 
@@ -276,9 +246,8 @@ export async function createTextFile(
 ): Promise<void> {
   const cleanPath = dirPath.replace(/^\/+|\/+$/g, "");
   const form = new FormData();
-  form.append("act", "bput");
   form.append("f", new File([content], name, { type: "text/plain" }));
-  const res = await fetch(`${BASE}/${cleanPath}/`, {
+  const res = await fetch(`${BASE}/upload/${cleanPath}`, {
     method: "POST",
     body: form,
   });

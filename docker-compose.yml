@@ -1,24 +1,5 @@
 services:
-  # CopyParty — file server backend
-  # Built from copyparty/ac with extra RAW thumbnail tooling:
-  # ffmpeg, exiftool, libraw-tools, imagemagick
-  # Set COPYPARTY_EXTERNAL=true in .env to use an existing CopyParty instance
-  copyparty:
-    build: ./copyparty
-    image: eagle-eye-copyparty:latest
-    user: "1000:100"
-    volumes:
-      - ${DATA_DIR:-./data}:/w
-      - /export/Eagle-Eye:/raid
-      - /mnt/media:/media
-    ports:
-      - "${COPYPARTY_PORT:-3923}:3923"
-    command: -i 0.0.0.0 -p 3923 -v /w:.:rw -v /raid:raid:rw -v /media:media:rw --rproxy -1 --xff-src lan -e2dsa -nb
-    restart: unless-stopped
-    profiles:
-      - bundled-copyparty
-
-  # Companion API — drive mount/eject (optional, Linux-only)
+  # Companion API — Unified Backend (File System + Drive Management)
   companion:
     build: ./server
     environment:
@@ -27,13 +8,13 @@ services:
     ports:
       - "${COMPANION_PORT:-3924}:3924"
     privileged: true
+    user: "1000:100"
     volumes:
       - /dev:/dev:ro
       - /sys:/sys:ro
       - /run/udev:/run/udev:ro
+      - /export/Eagle-Eye:/raid
       - ${MEDIA_MOUNT_DIR:-/mnt/media}:${MEDIA_MOUNT_DIR:-/mnt/media}:rshared
-    profiles:
-      - drives
     restart: unless-stopped
 
   # Frontend — nginx serving React app + reverse proxy
@@ -42,6 +23,6 @@ services:
     ports:
       - "${EAGLE_EYE_PORT:-8080}:80"
     environment:
-      - COPYPARTY_URL=${COPYPARTY_URL:-http://copyparty:3923}
-      - COMPANION_API_URL=${COMPANION_API_URL:-http://companion:3924}
+      - COPYPARTY_URL=http://companion:3924
+      - COMPANION_API_URL=http://companion:3924
     restart: unless-stopped
