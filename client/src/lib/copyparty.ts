@@ -6,140 +6,59 @@
 
 const BASE = import.meta.env.VITE_COPYPARTY_URL || "/api/fs";
 
-const PROPRIETARY_CINEMA_VIDEO_EXTS = new Set(["r3d", "braw", "ari"]);
-
 export interface CopyPartyEntry {
   name: string;
-  /** Relative path within the volume */
   href: string;
-  /** "d" for directory, or MIME type */
-  type: string;
-  /** Size in bytes (0 for directories) */
   sz: number;
-  /** Last modified timestamp (epoch seconds) */
   ts: number;
-  /** Number of items (for directories) */
+  type: string;
   num?: number;
 }
 
 export interface CopyPartyListing {
-  /** Current directory path */
-  here: string;
-  /** Directory name */
-  name: string;
-  /** Array of entries */
   dirs: CopyPartyEntry[];
   files: CopyPartyEntry[];
 }
 
-/** Fetch a directory listing from CopyParty */
-export async function listDirectory(path: string): Promise<CopyPartyListing> {
-  const cleanPath = path.replace(/^\/+|\/+$/g, "");
-  const res = await fetch(`${BASE}/${cleanPath}?ls`);
-  if (!res.ok) {
-    throw new Error(`Failed to list directory: ${res.status} ${res.statusText}`);
-  }
-  const data = await res.json();
-  return normalizeListing(data, cleanPath);
-}
+/** Guess if a file is an image, video, etc based on extension */
+export function guessType(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
 
-function normalizeListing(data: any, path: string): CopyPartyListing {
-  const dirs: CopyPartyEntry[] = [];
-  const files: CopyPartyEntry[] = [];
-
-  // CopyParty ?ls response: { dirs: [{href, sz, ts, ext, lead}, ...], files: [...] }
-  // href for dirs includes trailing slash, e.g. "FolderName/"
-
-  if (data.dirs) {
-    for (const d of data.dirs) {
-      const rawHref = d.href || "";
-      const name = decodeURIComponent(rawHref.replace(/\/+$/, ""));
-      dirs.push({
-        name,
-        href: `${path}/${name}`,
-        type: "d",
-        sz: d.sz || 0,
-        ts: d.ts || 0,
-      });
-    }
-  }
-
-  if (data.files) {
-    for (const f of data.files) {
-      const rawHref = f.href || "";
-      const name = decodeURIComponent(rawHref);
-      files.push({
-        name,
-        href: `${path}/${name}`,
-        type: guessType(name),
-        sz: f.sz || 0,
-        ts: f.ts || 0,
-      });
-    }
-  }
-
-  return {
-    here: path,
-    name: path.split("/").pop() || path,
-    dirs,
-    files,
-  };
-}
-
-function guessType(name: string): string {
-  const ext = getFileExtension(name);
   const types: Record<string, string> = {
-    // Web-previewable images
-    jpg: "image", jpeg: "image", png: "image", gif: "image", webp: "image",
-    svg: "image", bmp: "image", ico: "image", avif: "image", jfif: "image",
-    // RAW image formats (camera)
-    nef: "raw-image", cr2: "raw-image", cr3: "raw-image", arw: "raw-image",
-    orf: "raw-image", rw2: "raw-image", dng: "raw-image", raf: "raw-image",
-    pef: "raw-image", srw: "raw-image", x3f: "raw-image", iiq: "raw-image",
-    tiff: "image", tif: "image",
-    // PSD / design
-    psd: "raw-image", ai: "raw-image", eps: "raw-image",
-    // Web-playable video
+    // Images
+    jpg: "image", jpeg: "image", png: "image", gif: "image",
+    webp: "image", svg: "image", bmp: "image", ico: "image",
+    // RAW Images
+    nef: "raw-image", cr2: "raw-image", arw: "raw-image", dng: "raw-image",
+    orf: "raw-image", raf: "raw-image", rw2: "raw-image", pef: "raw-image",
+    srw: "raw-image", x3f: "raw-image", iiq: "raw-image",
+    // Video
     mp4: "video", webm: "video", ogg: "video", mov: "video",
-    // Non-web video (needs transcoding)
-    mkv: "raw-video", avi: "raw-video", wmv: "raw-video",
-    flv: "raw-video", m4v: "raw-video", mpg: "raw-video", mpeg: "raw-video",
-    "3gp": "raw-video", mts: "raw-video", m2ts: "raw-video",
-    // Cinema / pro video
+    // RAW / Cinema Video
     r3d: "raw-video", braw: "raw-video", ari: "raw-video", mxf: "raw-video",
-    prores: "raw-video",
+    prores: "raw-video", mkv: "raw-video", avi: "raw-video", wmv: "raw-video",
     // Audio
     mp3: "audio", wav: "audio", flac: "audio", aac: "audio", m4a: "audio",
-    wma: "audio", alac: "audio", aiff: "audio", ape: "audio", opus: "audio",
-    // Documents
-    pdf: "pdf",
-    doc: "document", docx: "document", xls: "document", xlsx: "document",
-    ppt: "document", pptx: "document", odt: "document", ods: "document",
-    // Text
-    txt: "text", md: "text", json: "text", csv: "text", log: "text",
-    xml: "text", yaml: "text", yml: "text", toml: "text", ini: "text",
-    cfg: "text", conf: "text", env: "text",
-    // Code
-    js: "code", jsx: "code", ts: "code", tsx: "code", py: "code",
-    html: "code", css: "code", scss: "code", less: "code",
-    go: "code", rs: "code", java: "code", kt: "code", swift: "code",
-    c: "code", cpp: "code", h: "code", hpp: "code",
-    rb: "code", php: "code", sh: "code", bash: "code", zsh: "code",
-    sql: "code", r: "code", lua: "code", zig: "code",
-    // Archives
-    zip: "archive", tar: "archive", gz: "archive", "7z": "archive", rar: "archive",
-    bz2: "archive", xz: "archive", zst: "archive", lz4: "archive",
-    iso: "archive", dmg: "archive",
-    // Subtitles
-    srt: "text", vtt: "text", ass: "text", ssa: "text",
-    // Fonts
-    ttf: "file", otf: "file", woff: "file", woff2: "file",
+    // Text / Code
+    txt: "text", md: "text", json: "code", js: "code", ts: "code",
+    tsx: "code", html: "code", css: "code", py: "code", sh: "code",
+    // Docs
+    pdf: "pdf", doc: "file", docx: "file", xls: "file", xlsx: "file",
+    // Archive
+    zip: "archive", tar: "archive", gz: "archive", rar: "archive", "7z": "archive",
   };
+
   return types[ext] || "file";
 }
 
 export function getFileExtension(name: string): string {
   return name.split(".").pop()?.toLowerCase() || "";
+}
+
+/** Some formats like R3D are folders in reality but treated as one file in cinema workflows */
+export function isProprietaryCinemaVideo(name: string): boolean {
+  const ext = getFileExtension(name);
+  return ext === "r3d";
 }
 
 /** Check if a file type can be previewed in Eagle Eye */
@@ -162,29 +81,43 @@ export function supportsThumbnails(type: string): boolean {
   );
 }
 
-/** R3D / BRAW / ARI require proprietary SDKs; thumbnail decode may fail */
-export function isProprietaryCinemaVideo(name: string): boolean {
-  return PROPRIETARY_CINEMA_VIDEO_EXTS.has(getFileExtension(name));
+/** Get raw file URL */
+export function fileUrl(href: string): string {
+  return `${BASE}/${href}`;
 }
 
-/** Check if a file can be opened inline (text, code, etc.) */
-export function isTextType(type: string): boolean {
-  return type === "text" || type === "code";
+/** Get thumbnail URL */
+export function thumbnailUrl(href: string): string {
+  return `${BASE}/${href}?th`;
 }
 
-/** Build a thumbnail URL for an image/video */
-export function thumbnailUrl(path: string): string {
-  const cleanPath = path.replace(/^\/+/, "");
-  return `${BASE}/${cleanPath}?th`;
+/** List directory contents */
+export async function listDirectory(path: string): Promise<CopyPartyListing> {
+  const cleanPath = path.replace(/^\/+|\/+$/g, "");
+  const res = await fetch(`${BASE}/${cleanPath}?ls`);
+  if (!res.ok) throw new Error(`Failed to list directory: ${res.statusText}`);
+
+  const data = await res.json();
+
+  return {
+    dirs: (data.dirs || []).map((d: any) => ({
+      name: d.n,
+      href: cleanPath ? `${cleanPath}/${d.n}` : d.n,
+      sz: d.s,
+      ts: d.t,
+      num: d.c,
+      type: "d",
+    })),
+    files: (data.files || []).map((f: any) => ({
+      name: f.n,
+      href: cleanPath ? `${cleanPath}/${f.n}` : f.n,
+      sz: f.s,
+      ts: f.t,
+      type: guessType(f.n),
+    })),
+  };
 }
 
-/** Build a direct download/streaming URL */
-export function fileUrl(path: string): string {
-  const cleanPath = path.replace(/^\/+/, "");
-  return `${BASE}/${cleanPath}`;
-}
-
-/** Format bytes to human readable */
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -257,7 +190,8 @@ export async function createDirectory(
   const form = new FormData();
   form.append("act", "mkdir");
   form.append("name", name);
-  const res = await fetch(`${BASE}/${cleanPath}/`, {
+  const url = cleanPath ? `${BASE}/${cleanPath}/` : `${BASE}/`;
+  const res = await fetch(url, {
     method: "POST",
     body: form,
   });
@@ -270,9 +204,7 @@ export async function deleteEntry(
   options?: EntryPathOptions
 ): Promise<void> {
   const cleanPath = normalizeEntryPath(path, options);
-  const res = await fetch(`${BASE}/${cleanPath}?delete`, {
-    method: "POST",
-  });
+  const res = await fetch(`${BASE}/${cleanPath}?delete`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to delete: ${res.statusText}`);
 }
 
@@ -285,7 +217,9 @@ export async function renameEntry(
   const cleanPath = normalizeEntryPath(path, options);
   const parentPath = cleanPath.replace(/\/+$/, "").split("/").slice(0, -1).join("/");
   const res = await fetch(
-    `${BASE}/${cleanPath}?move=${encodeURIComponent(parentPath + "/" + newName)}`,
+    `${BASE}/${cleanPath}?move=${encodeURIComponent(
+      parentPath ? parentPath + "/" + newName : newName
+    )}`,
     { method: "POST" }
   );
   if (!res.ok) throw new Error(`Failed to rename: ${res.statusText}`);
@@ -330,21 +264,18 @@ export async function createTextFile(
   content: string
 ): Promise<void> {
   const cleanPath = dirPath.replace(/^\/+|\/+$/g, "");
-  const blob = new Blob([content], { type: "text/plain" });
-  const file = new globalThis.File([blob], name);
   const form = new FormData();
   form.append("act", "bput");
-  form.append("f", file);
+  form.append("f", new File([content], name, { type: "text/plain" }));
   const res = await fetch(`${BASE}/${cleanPath}/`, {
     method: "POST",
     body: form,
   });
-  if (!res.ok) throw new Error(`Failed to create file: ${res.statusText}`);
+  if (!res.ok) throw new Error(`Failed to create text file: ${res.statusText}`);
 }
 
-/** Format timestamp to relative or date string */
 export function formatDate(ts: number): string {
-  if (!ts) return "";
+  if (ts === 0) return "-";
   const date = new Date(ts * 1000);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
