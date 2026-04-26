@@ -36,11 +36,16 @@ export function Sidebar() {
   const mountedDrives = (drives || []).filter((d) => d.mounted);
   const unmountedDrives = (drives || []).filter((d) => !d.mounted);
 
-  const driveLocations: SidebarItem[] = mountedDrives.map((d) => ({
-    label: d.label,
-    path: `/browse/media/${d.label}`,
-    icon: <Usb className="h-4 w-4" />,
-  }));
+  const driveLocations: SidebarItem[] = mountedDrives.map((d) => {
+    // Derive the URL segment from the actual mountpoint, since the
+    // filesystem label may contain spaces that get sanitized at mount.
+    const folderName = d.mountpoint.split("/").filter(Boolean).pop() || d.label;
+    return {
+      label: d.label,
+      path: `/browse/media/${folderName}`,
+      icon: <Usb className="h-4 w-4" />,
+    };
+  });
 
   const favoriteItems: SidebarItem[] = favorites.map((f) => ({
     ...f,
