@@ -195,11 +195,11 @@ export async function createDirectory(
   parentPath: string,
   name: string
 ): Promise<void> {
-  const cleanPath = parentPath.replace(/^\/+|\/+$/g, "");
+  const cleanParent = parentPath.replace(/^\/+|\/+$/g, "");
   const form = new FormData();
   form.append("act", "mkdir");
   form.append("name", name);
-  const url = cleanPath ? `${BASE}/${cleanPath}/` : `${BASE}/`;
+  const url = cleanParent ? `${BASE}/${cleanParent}/` : `${BASE}/`;
   const res = await fetch(url, {
     method: "POST",
     body: form,
@@ -224,7 +224,8 @@ export async function renameEntry(
   options?: EntryPathOptions
 ): Promise<void> {
   const cleanPath = normalizeEntryPath(path, options);
-  const parentPath = cleanPath.replace(/\/+$/, "").split("/").slice(0, -1).join("/");
+  const parts = cleanPath.replace(/\/+$/, "").split("/");
+  const parentPath = parts.slice(0, -1).join("/");
   const res = await fetch(
     `${BASE}/${cleanPath}?move=${encodeURIComponent(
       parentPath ? parentPath + "/" + newName : newName
