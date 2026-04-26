@@ -37,7 +37,7 @@ export function Sidebar() {
   const unmountedDrives = (drives || []).filter((d) => !d.mounted);
 
   const driveLocations: SidebarItem[] = mountedDrives.map((d) => {
-    const folderName = d.mountpoint.split("/").filter(Boolean).pop() || d.label;
+    const folderName = d.mountpoint ? (d.mountpoint.split("/").filter(Boolean).pop() || d.label) : d.label;
     return {
       label: d.label.toUpperCase(),
       path: `/browse/media/${folderName}`,
