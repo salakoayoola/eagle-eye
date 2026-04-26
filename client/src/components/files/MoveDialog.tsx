@@ -48,7 +48,7 @@ export function MoveDialog({
     }
   }, [open]);
 
-  const pathParts = currentPath.split("/");
+  const pathParts = (currentPath || "").split("/");
 
   const handleMove = () => {
     const dest = selectedPath || currentPath;
@@ -115,7 +115,7 @@ export function MoveDialog({
 
         <p className="text-xs text-muted-foreground">
           Select a folder or double-click to navigate into it. The item will be
-          moved to {selectedPath ? `"${selectedPath.split("/").pop()}"` : "the current folder"}.
+          moved to {selectedPath ? `"${(selectedPath || "").split("/").pop()}"` : "the current folder"}.
         </p>
 
         <DialogFooter>

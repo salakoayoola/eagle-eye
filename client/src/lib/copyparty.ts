@@ -22,6 +22,7 @@ export interface CopyPartyListing {
 
 /** Guess if a file is an image, video, etc based on extension */
 export function guessType(name: string): string {
+  if (!name) return "file";
   const ext = name.split(".").pop()?.toLowerCase() || "";
 
   const types: Record<string, string> = {
@@ -52,6 +53,7 @@ export function guessType(name: string): string {
 }
 
 export function getFileExtension(name: string): string {
+  if (!name) return "";
   return name.split(".").pop()?.toLowerCase() || "";
 }
 
@@ -100,21 +102,25 @@ export async function listDirectory(path: string): Promise<CopyPartyListing> {
   const data = await res.json();
 
   return {
-    dirs: (data.dirs || []).map((d: any) => ({
-      name: d.n,
-      href: cleanPath ? `${cleanPath}/${d.n}` : d.n,
-      sz: d.s,
-      ts: d.t,
-      num: d.c,
-      type: "d",
-    })),
-    files: (data.files || []).map((f: any) => ({
-      name: f.n,
-      href: cleanPath ? `${cleanPath}/${f.n}` : f.n,
-      sz: f.s,
-      ts: f.t,
-      type: guessType(f.n),
-    })),
+    dirs: (data.dirs || [])
+      .filter((d: any) => d && d.n)
+      .map((d: any) => ({
+        name: d.n,
+        href: cleanPath ? `${cleanPath}/${d.n}` : d.n,
+        sz: d.s || 0,
+        ts: d.t || 0,
+        num: d.c,
+        type: "d",
+      })),
+    files: (data.files || [])
+      .filter((f: any) => f && f.n)
+      .map((f: any) => ({
+        name: f.n,
+        href: cleanPath ? `${cleanPath}/${f.n}` : f.n,
+        sz: f.s || 0,
+        ts: f.t || 0,
+        type: guessType(f.n),
+      })),
   };
 }
 

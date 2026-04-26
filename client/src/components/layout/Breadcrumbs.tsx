@@ -9,7 +9,7 @@ interface BreadcrumbsProps {
 }
 
 export function Breadcrumbs({ path, basePath = "/browse" }: BreadcrumbsProps) {
-  const segments = path.split("/").filter(Boolean);
+  const segments = (path || "").split("/").filter(Boolean);
 
   return (
     <nav className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider">

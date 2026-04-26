@@ -27,7 +27,7 @@ async function searchFiles(query: string): Promise<SearchResult[]> {
   // We normalize here
   if (Array.isArray(data)) {
     return data.map((item: any) => ({
-      name: typeof item === "string" ? item.split("/").pop()! : item.name || item.href,
+      name: typeof item === "string" ? (item || "").split("/").pop()! : item.name || item.href,
       href: typeof item === "string" ? item : item.href || item.name,
       isDir: typeof item === "string" ? item.endsWith("/") : item.type === "d",
     }));
@@ -66,7 +66,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         navigate(`/browse/${path}`);
       } else {
         // Navigate to the parent directory
-        const parent = path.split("/").slice(0, -1).join("/");
+        const parent = (path || "").split("/").slice(0, -1).join("/");
         navigate(`/browse/${parent || "raid"}`);
       }
     },
