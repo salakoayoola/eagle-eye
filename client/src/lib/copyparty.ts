@@ -103,23 +103,26 @@ export async function listDirectory(path: string): Promise<CopyPartyListing> {
 
   return {
     dirs: (data.dirs || [])
-      .filter((d: any) => d && d.n)
-      .map((d: any) => ({
-        name: d.n,
-        href: cleanPath ? `${cleanPath}/${d.n}` : d.n,
-        sz: d.s || 0,
-        ts: d.t || 0,
-        num: d.c,
-        type: "d",
-      })),
+      .filter((d: any) => d && d.href)
+      .map((d: any) => {
+        const name = d.href.replace(/\/+$/, "");
+        return {
+          name,
+          href: cleanPath ? `${cleanPath}/${name}` : name,
+          sz: d.sz || 0,
+          ts: d.ts || 0,
+          num: d.tags?.[".files"],
+          type: "d",
+        };
+      }),
     files: (data.files || [])
-      .filter((f: any) => f && f.n)
+      .filter((f: any) => f && f.href)
       .map((f: any) => ({
-        name: f.n,
-        href: cleanPath ? `${cleanPath}/${f.n}` : f.n,
-        sz: f.s || 0,
-        ts: f.t || 0,
-        type: guessType(f.n),
+        name: f.href,
+        href: cleanPath ? `${cleanPath}/${f.href}` : f.href,
+        sz: f.sz || 0,
+        ts: f.ts || 0,
+        type: guessType(f.href),
       })),
   };
 }
