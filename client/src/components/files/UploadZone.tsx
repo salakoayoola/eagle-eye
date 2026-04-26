@@ -37,21 +37,33 @@ export function UploadZone({ onFiles, children, className }: UploadZoneProps) {
       if (item.isFile) {
         (item as FileSystemFileEntry).file((file) => {
           // Manually attach the relative path for CopyParty
+          // Ensure it's in the format: folder/subfolder/file.ext
           Object.defineProperty(file, 'webkitRelativePath', {
-            value: path + file.name
+            value: path + file.name,
+            writable: true,
+            configurable: true
           });
           resolve([file]);
         });
       } else if (item.isDirectory) {
         const dirReader = (item as FileSystemDirectoryEntry).createReader();
-        dirReader.readEntries(async (entries) => {
+        const readAllEntries = async () => {
+          let allEntries: FileSystemEntry[] = [];
+          let lastBatch: FileSystemEntry[] = [];
+          
+          do {
+            lastBatch = await new Promise((res) => dirReader.readEntries(res));
+            allEntries = allEntries.concat(lastBatch);
+          } while (lastBatch.length > 0);
+          
           const files: File[] = [];
-          for (const entry of entries) {
+          for (const entry of allEntries) {
             const entryFiles = await traverseFileTree(entry, path + item.name + "/");
             files.push(...entryFiles);
           }
           resolve(files);
-        });
+        };
+        readAllEntries();
       } else {
         resolve([]);
       }
@@ -71,7 +83,9 @@ export function UploadZone({ onFiles, children, className }: UploadZoneProps) {
         for (let i = 0; i < items.length; i++) {
           const item = items[i].webkitGetAsEntry();
           if (item) {
-            promises.push(traverseFileTree(item));
+            // Start traversal with empty path
+            // The folder name itself will be prepended by traverseFileTree
+            promises.push(traverseFileTree(item, ""));
           }
         }
         const results = await Promise.all(promises);

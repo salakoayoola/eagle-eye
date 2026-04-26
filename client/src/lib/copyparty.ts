@@ -69,7 +69,8 @@ export function isPreviewable(type: string): boolean {
     type === "image" ||
     type === "video" ||
     type === "raw-image" ||
-    type === "raw-video"
+    type === "raw-video" ||
+    type === "pdf"
   );
 }
 

@@ -33,6 +33,7 @@ import {
 } from "@/lib/copyparty";
 import { ImageLightbox } from "@/components/media/ImageLightbox";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
+import { PdfViewer } from "@/components/media/PdfViewer";
 import { TaskProgress, type Task, type TaskStatus } from "@/components/layout/TaskProgress";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -612,6 +613,12 @@ export function BrowsePage() {
       )}
       {(mediaEntry?.type === "video" || mediaEntry?.type === "raw-video") && (
         <VideoPlayer
+          entry={mediaEntry}
+          onClose={() => setMediaEntry(null)}
+        />
+      )}
+      {mediaEntry?.type === "pdf" && (
+        <PdfViewer
           entry={mediaEntry}
           onClose={() => setMediaEntry(null)}
         />
