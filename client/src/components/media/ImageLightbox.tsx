@@ -10,6 +10,7 @@ interface ImageLightboxProps {
   onNext?: () => void;
   hasPrev: boolean;
   hasNext: boolean;
+  previewSrc?: string;
 }
 
 export function ImageLightbox({
@@ -19,7 +20,10 @@ export function ImageLightbox({
   onNext,
   hasPrev,
   hasNext,
+  previewSrc,
 }: ImageLightboxProps) {
+  const imageSrc = previewSrc || fileUrl(entry.href);
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -81,7 +85,7 @@ export function ImageLightbox({
 
       {/* Image */}
       <img
-        src={fileUrl(entry.href)}
+        src={imageSrc}
         alt={entry.name}
         className="max-h-[90vh] max-w-[90vw] object-contain"
         onClick={(e) => e.stopPropagation()}

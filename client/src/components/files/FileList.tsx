@@ -9,16 +9,19 @@ import {
   Music,
   Camera,
   Film,
+  Circle,
+  CircleCheckBig,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type CopyPartyEntry, formatBytes, formatDate } from "@/lib/copyparty";
 import { FileContextMenu } from "./FileContextMenu";
+import type { MouseEvent } from "react";
 
 interface FileListProps {
   dirs: CopyPartyEntry[];
   files: CopyPartyEntry[];
-  onNavigate: (entry: CopyPartyEntry) => void;
-  onSelect: (entry: CopyPartyEntry) => void;
+  onEntryClick: (entry: CopyPartyEntry, event: MouseEvent) => void;
+  onToggleSelect: (entry: CopyPartyEntry, event: MouseEvent) => void;
   selectedPaths: Set<string>;
   onRename?: (entry: CopyPartyEntry) => void;
   onDelete?: (entry: CopyPartyEntry) => void;
@@ -44,8 +47,8 @@ const typeIcons: Record<string, React.ReactNode> = {
 export function FileList({
   dirs,
   files,
-  onNavigate,
-  onSelect,
+  onEntryClick,
+  onToggleSelect,
   selectedPaths,
   onRename,
   onDelete,
@@ -62,7 +65,8 @@ export function FileList({
   return (
     <div className="rounded-lg border">
       {/* Header */}
-      <div className="grid grid-cols-[1fr_100px_120px] gap-4 border-b px-4 py-2 text-xs font-medium text-muted-foreground">
+      <div className="grid grid-cols-[32px_1fr_100px_120px] gap-4 border-b px-4 py-2 text-xs font-medium text-muted-foreground">
+        <span />
         <span>Name</span>
         <span className="text-right">Size</span>
         <span className="text-right">Modified</span>
@@ -76,18 +80,33 @@ export function FileList({
         const row = (
           <div
             key={entry.href}
-            onClick={() => (isDir ? onNavigate(entry) : onSelect(entry))}
+            onClick={(event) => onEntryClick(entry, event)}
             className={cn(
-              "grid w-full grid-cols-[1fr_100px_120px] gap-4 px-4 py-2.5 text-left text-sm transition-colors cursor-pointer",
+              "grid w-full cursor-pointer grid-cols-[32px_1fr_100px_120px] gap-4 px-4 py-2.5 text-left text-sm transition-colors",
               "hover:bg-muted/50",
               selected && "bg-primary/5"
             )}
           >
+            <button
+              type="button"
+              className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleSelect(entry, event);
+              }}
+              aria-label={selected ? "Deselect item" : "Select item"}
+            >
+              {selected ? (
+                <CircleCheckBig className="h-4 w-4 text-primary" />
+              ) : (
+                <Circle className="h-4 w-4" />
+              )}
+            </button>
             <span className="flex items-center gap-2 truncate">
               {typeIcons[entry.type] || typeIcons.file}
               <span className="truncate">{entry.name}</span>
             </span>
-            <span className="text-right font-mono text-xs text-muted-foreground tabular-nums">
+            <span className="text-right font-mono text-xs tabular-nums text-muted-foreground">
               {isDir ? `${entry.num || 0} items` : formatBytes(entry.sz)}
             </span>
             <span className="text-right text-xs text-muted-foreground">

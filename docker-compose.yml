@@ -1,9 +1,11 @@
 services:
   # CopyParty — file server backend
-  # Image: https://hub.docker.com/r/copyparty/ac (includes media thumbnails)
+  # Built from copyparty/ac with extra RAW thumbnail tooling:
+  # ffmpeg, exiftool, libraw-tools, imagemagick
   # Set COPYPARTY_EXTERNAL=true in .env to use an existing CopyParty instance
   copyparty:
-    image: copyparty/ac:latest
+    build: ./copyparty
+    image: eagle-eye-copyparty:latest
     user: "1000"
     volumes:
       - ${DATA_DIR:-./data}:/w

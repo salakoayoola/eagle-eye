@@ -6,6 +6,8 @@
 
 const BASE = import.meta.env.VITE_COPYPARTY_URL || "/api/fs";
 
+const PROPRIETARY_CINEMA_VIDEO_EXTS = new Set(["r3d", "braw", "ari"]);
+
 export interface CopyPartyEntry {
   name: string;
   /** Relative path within the volume */
@@ -85,7 +87,7 @@ function normalizeListing(data: any, path: string): CopyPartyListing {
 }
 
 function guessType(name: string): string {
-  const ext = name.split(".").pop()?.toLowerCase() || "";
+  const ext = getFileExtension(name);
   const types: Record<string, string> = {
     // Web-previewable images
     jpg: "image", jpeg: "image", png: "image", gif: "image", webp: "image",
@@ -136,9 +138,28 @@ function guessType(name: string): string {
   return types[ext] || "file";
 }
 
-/** Check if a file type can be previewed in the browser */
+export function getFileExtension(name: string): string {
+  return name.split(".").pop()?.toLowerCase() || "";
+}
+
+/** Check if a file type can be previewed in Eagle Eye */
 export function isPreviewable(type: string): boolean {
-  return type === "image" || type === "video";
+  return type === "image" || type === "video" || type === "raw-image";
+}
+
+/** Check if a file type can attempt thumbnail generation via CopyParty */
+export function supportsThumbnails(type: string): boolean {
+  return (
+    type === "image" ||
+    type === "video" ||
+    type === "raw-image" ||
+    type === "raw-video"
+  );
+}
+
+/** R3D / BRAW / ARI require proprietary SDKs; thumbnail decode may fail */
+export function isProprietaryCinemaVideo(name: string): boolean {
+  return PROPRIETARY_CINEMA_VIDEO_EXTS.has(getFileExtension(name));
 }
 
 /** Check if a file can be opened inline (text, code, etc.) */
@@ -197,6 +218,20 @@ export async function uploadFile(
   });
 }
 
+interface EntryPathOptions {
+  directory?: boolean;
+}
+
+function normalizeEntryPath(path: string, options?: EntryPathOptions): string {
+  const clean = path.replace(/^\/+|\/+$/g, "");
+  if (!options?.directory) return clean;
+  return clean ? `${clean}/` : clean;
+}
+
+function getEntryName(path: string): string {
+  return path.replace(/^\/+|\/+$/g, "").split("/").pop() || "";
+}
+
 /** Create a directory */
 export async function createDirectory(
   parentPath: string,
@@ -214,8 +249,11 @@ export async function createDirectory(
 }
 
 /** Delete a file or directory */
-export async function deleteEntry(path: string): Promise<void> {
-  const cleanPath = path.replace(/^\/+|\/+$/g, "");
+export async function deleteEntry(
+  path: string,
+  options?: EntryPathOptions
+): Promise<void> {
+  const cleanPath = normalizeEntryPath(path, options);
   const res = await fetch(`${BASE}/${cleanPath}?delete`, {
     method: "POST",
   });
@@ -225,10 +263,11 @@ export async function deleteEntry(path: string): Promise<void> {
 /** Rename a file or directory */
 export async function renameEntry(
   path: string,
-  newName: string
+  newName: string,
+  options?: EntryPathOptions
 ): Promise<void> {
-  const cleanPath = path.replace(/^\/+|\/+$/g, "");
-  const parentPath = cleanPath.split("/").slice(0, -1).join("/");
+  const cleanPath = normalizeEntryPath(path, options);
+  const parentPath = cleanPath.replace(/\/+$/, "").split("/").slice(0, -1).join("/");
   const res = await fetch(
     `${BASE}/${cleanPath}?move=${encodeURIComponent(parentPath + "/" + newName)}`,
     { method: "POST" }
@@ -239,11 +278,12 @@ export async function renameEntry(
 /** Move a file or directory to a new parent */
 export async function moveEntry(
   srcPath: string,
-  destDir: string
+  destDir: string,
+  options?: EntryPathOptions
 ): Promise<void> {
-  const cleanSrc = srcPath.replace(/^\/+|\/+$/g, "");
+  const cleanSrc = normalizeEntryPath(srcPath, options);
   const cleanDest = destDir.replace(/^\/+|\/+$/g, "");
-  const name = cleanSrc.split("/").pop();
+  const name = getEntryName(srcPath);
   const res = await fetch(
     `${BASE}/${cleanSrc}?move=${encodeURIComponent(cleanDest + "/" + name)}`,
     { method: "POST" }
@@ -254,11 +294,12 @@ export async function moveEntry(
 /** Copy a file or directory to a new parent */
 export async function copyEntry(
   srcPath: string,
-  destDir: string
+  destDir: string,
+  options?: EntryPathOptions
 ): Promise<void> {
-  const cleanSrc = srcPath.replace(/^\/+|\/+$/g, "");
+  const cleanSrc = normalizeEntryPath(srcPath, options);
   const cleanDest = destDir.replace(/^\/+|\/+$/g, "");
-  const name = cleanSrc.split("/").pop();
+  const name = getEntryName(srcPath);
   const res = await fetch(
     `${BASE}/${cleanSrc}?copy=${encodeURIComponent(cleanDest + "/" + name)}`,
     { method: "POST" }

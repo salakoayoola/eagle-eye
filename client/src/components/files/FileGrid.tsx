@@ -1,12 +1,13 @@
 import type { CopyPartyEntry } from "@/lib/copyparty";
+import type { MouseEvent } from "react";
 import { FileCard } from "./FileCard";
 import { FolderCard } from "./FolderCard";
 
 interface FileGridProps {
   dirs: CopyPartyEntry[];
   files: CopyPartyEntry[];
-  onNavigate: (entry: CopyPartyEntry) => void;
-  onSelect: (entry: CopyPartyEntry) => void;
+  onEntryClick: (entry: CopyPartyEntry, event: MouseEvent) => void;
+  onToggleSelect: (entry: CopyPartyEntry, event: MouseEvent) => void;
   selectedPaths: Set<string>;
   onRename?: (entry: CopyPartyEntry) => void;
   onDelete?: (entry: CopyPartyEntry) => void;
@@ -19,8 +20,8 @@ interface FileGridProps {
 export function FileGrid({
   dirs,
   files,
-  onNavigate,
-  onSelect,
+  onEntryClick,
+  onToggleSelect,
   selectedPaths,
   onRename,
   onDelete,
@@ -38,12 +39,13 @@ export function FileGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-4 pb-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {dirs.map((dir) => (
         <FolderCard
           key={dir.href}
           entry={dir}
-          onClick={() => onNavigate(dir)}
+          onClick={(event) => onEntryClick(dir, event)}
+          onToggleSelect={(event) => onToggleSelect(dir, event)}
           selected={selectedPaths.has(dir.href)}
           onRename={onRename ? () => onRename(dir) : undefined}
           onDelete={onDelete ? () => onDelete(dir) : undefined}
@@ -57,7 +59,8 @@ export function FileGrid({
         <FileCard
           key={file.href}
           entry={file}
-          onClick={() => onSelect(file)}
+          onClick={(event) => onEntryClick(file, event)}
+          onToggleSelect={(event) => onToggleSelect(file, event)}
           selected={selectedPaths.has(file.href)}
           onRename={onRename ? () => onRename(file) : undefined}
           onDelete={onDelete ? () => onDelete(file) : undefined}

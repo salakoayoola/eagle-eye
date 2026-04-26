@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, type MouseEvent } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
@@ -24,7 +24,9 @@ import {
   createDirectory,
   createTextFile,
   deleteEntry,
+  isPreviewable,
   renameEntry,
+  thumbnailUrl,
   moveEntry,
   copyEntry,
   uploadFile,
@@ -32,6 +34,8 @@ import {
 import { ImageLightbox } from "@/components/media/ImageLightbox";
 import { VideoPlayer } from "@/components/media/VideoPlayer";
 import { Loader2 } from "lucide-react";
+
+type EntryModifierEvent = Pick<MouseEvent, "shiftKey" | "metaKey" | "ctrlKey">;
 
 export function BrowsePage() {
   const { "*": splat } = useParams();
@@ -49,6 +53,7 @@ export function BrowsePage() {
   const [sortBy, setSortBy] = useState<SortBy>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
 
   // Dialog states
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -91,24 +96,10 @@ export function BrowsePage() {
     [sortBy]
   );
 
-  const handleNavigate = useCallback(
-    (entry: CopyPartyEntry) => {
-      setSelectedPaths(new Set());
-      setInfoEntry(null);
-      navigate(`/browse/${entry.href}`);
-    },
-    [navigate]
-  );
-
-  // Single click on file → open info sidebar
-  const handleFileSelect = useCallback((entry: CopyPartyEntry) => {
-    setInfoEntry(entry);
-  }, []);
-
   // Open media preview or the file
   const handleFileOpen = useCallback(
     (entry: CopyPartyEntry) => {
-      if (entry.type === "image" || entry.type === "video") {
+      if (isPreviewable(entry.type)) {
         setMediaEntry(entry);
       } else if (entry.type === "d") {
         navigate(`/browse/${entry.href}`);
@@ -118,47 +109,6 @@ export function BrowsePage() {
     },
     [navigate]
   );
-
-  // Clipboard operations
-  const handleCopy = useCallback(
-    (entry: CopyPartyEntry) => {
-      copy([entry], path);
-    },
-    [copy, path]
-  );
-
-  const handleCut = useCallback(
-    (entry: CopyPartyEntry) => {
-      cut([entry], path);
-    },
-    [cut, path]
-  );
-
-  const handlePaste = useCallback(async () => {
-    if (!clipboard) return;
-
-    try {
-      for (const entry of clipboard.entries) {
-        if (clipboard.action === "copy") {
-          await copyEntry(entry.href, path);
-        } else {
-          await moveEntry(entry.href, path);
-        }
-      }
-
-      // Invalidate both source and destination
-      invalidate();
-      if (clipboard.sourcePath !== path) {
-        invalidatePath(clipboard.sourcePath);
-      }
-
-      if (clipboard.action === "cut") {
-        clearClipboard();
-      }
-    } catch (err) {
-      console.error("Paste failed:", err);
-    }
-  }, [clipboard, path, invalidate, invalidatePath, clearClipboard]);
 
   // File operations
   const handleNewFolder = useCallback(
@@ -180,7 +130,9 @@ export function BrowsePage() {
   const handleRename = useCallback(
     async (newName: string) => {
       if (!renameTarget) return;
-      await renameEntry(renameTarget.href, newName);
+      await renameEntry(renameTarget.href, newName, {
+        directory: renameTarget.type === "d",
+      });
       setRenameTarget(null);
       if (infoEntry?.href === renameTarget.href) setInfoEntry(null);
       invalidate();
@@ -190,7 +142,7 @@ export function BrowsePage() {
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
-    await deleteEntry(deleteTarget.href);
+    await deleteEntry(deleteTarget.href, { directory: deleteTarget.type === "d" });
     if (infoEntry?.href === deleteTarget.href) setInfoEntry(null);
     setDeleteTarget(null);
     setSelectedPaths((prev) => {
@@ -204,7 +156,9 @@ export function BrowsePage() {
   const handleMove = useCallback(
     async (destPath: string) => {
       if (!moveTarget) return;
-      await moveEntry(moveTarget.href, destPath);
+      await moveEntry(moveTarget.href, destPath, {
+        directory: moveTarget.type === "d",
+      });
       setMoveTarget(null);
       if (infoEntry?.href === moveTarget.href) setInfoEntry(null);
       invalidate();
@@ -244,9 +198,160 @@ export function BrowsePage() {
     });
   }, [data, sortBy, sortOrder]);
 
+  const orderedEntries = useMemo<CopyPartyEntry[]>(
+    () => [...sortedDirs.map((d) => ({ ...d, type: "d" })), ...sortedFiles],
+    [sortedDirs, sortedFiles]
+  );
+
+  const entryByHref = useMemo(
+    () => new Map(orderedEntries.map((entry) => [entry.href, entry])),
+    [orderedEntries]
+  );
+
+  const entryIndexByHref = useMemo(
+    () => new Map(orderedEntries.map((entry, index) => [entry.href, index])),
+    [orderedEntries]
+  );
+
+  const selectRange = useCallback(
+    (targetHref: string, additive: boolean) => {
+      const targetIndex = entryIndexByHref.get(targetHref);
+      if (targetIndex === undefined) return;
+
+      const anchorHref =
+        selectionAnchor && entryIndexByHref.has(selectionAnchor)
+          ? selectionAnchor
+          : targetHref;
+      const anchorIndex = entryIndexByHref.get(anchorHref);
+      if (anchorIndex === undefined) return;
+
+      const [start, end] =
+        anchorIndex <= targetIndex
+          ? [anchorIndex, targetIndex]
+          : [targetIndex, anchorIndex];
+      const range = new Set(
+        orderedEntries.slice(start, end + 1).map((entry) => entry.href)
+      );
+
+      setSelectedPaths((prev) => {
+        if (!additive) {
+          return range;
+        }
+        const next = new Set(prev);
+        for (const href of range) next.add(href);
+        return next;
+      });
+      setSelectionAnchor(anchorHref);
+    },
+    [entryIndexByHref, orderedEntries, selectionAnchor]
+  );
+
+  const toggleSelection = useCallback((href: string) => {
+    setSelectedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(href)) next.delete(href);
+      else next.add(href);
+      return next;
+    });
+    setSelectionAnchor(href);
+  }, []);
+
+  const handleEntryClick = useCallback(
+    (entry: CopyPartyEntry, event: EntryModifierEvent) => {
+      const addToSelection = event.metaKey || event.ctrlKey;
+
+      if (event.shiftKey) {
+        selectRange(entry.href, addToSelection);
+        return;
+      }
+
+      if (addToSelection) {
+        toggleSelection(entry.href);
+        return;
+      }
+
+      setSelectedPaths(new Set([entry.href]));
+      setSelectionAnchor(entry.href);
+
+      if (entry.type === "d") {
+        setInfoEntry(null);
+        navigate(`/browse/${entry.href}`);
+        return;
+      }
+
+      setInfoEntry(entry);
+    },
+    [navigate, selectRange, toggleSelection]
+  );
+
+  const handleToggleSelect = useCallback(
+    (entry: CopyPartyEntry, event: EntryModifierEvent) => {
+      if (event.shiftKey) {
+        selectRange(entry.href, true);
+        return;
+      }
+      toggleSelection(entry.href);
+    },
+    [selectRange, toggleSelection]
+  );
+
+  const getClipboardEntries = useCallback(
+    (entry: CopyPartyEntry): CopyPartyEntry[] => {
+      if (selectedPaths.size > 1 && selectedPaths.has(entry.href)) {
+        return Array.from(selectedPaths)
+          .map((href) => entryByHref.get(href))
+          .filter((item): item is CopyPartyEntry => Boolean(item));
+      }
+      return [entry];
+    },
+    [selectedPaths, entryByHref]
+  );
+
+  // Clipboard operations
+  const handleCopy = useCallback(
+    (entry: CopyPartyEntry) => {
+      copy(getClipboardEntries(entry), path);
+    },
+    [copy, getClipboardEntries, path]
+  );
+
+  const handleCut = useCallback(
+    (entry: CopyPartyEntry) => {
+      cut(getClipboardEntries(entry), path);
+    },
+    [cut, getClipboardEntries, path]
+  );
+
+  const handlePaste = useCallback(async () => {
+    if (!clipboard) return;
+
+    try {
+      for (const entry of clipboard.entries) {
+        const directory = entry.type === "d";
+        if (clipboard.action === "copy") {
+          await copyEntry(entry.href, path, { directory });
+        } else {
+          await moveEntry(entry.href, path, { directory });
+        }
+      }
+
+      // Invalidate both source and destination
+      invalidate();
+      if (clipboard.sourcePath !== path) {
+        invalidatePath(clipboard.sourcePath);
+      }
+
+      if (clipboard.action === "cut") {
+        clearClipboard();
+      }
+    } catch (err) {
+      console.error("Paste failed:", err);
+    }
+  }, [clipboard, path, invalidate, invalidatePath, clearClipboard]);
+
   // Media navigation helpers (must be after sortedFiles)
   const mediaFiles = useMemo(
-    () => sortedFiles.filter((f) => f.type === "image" || f.type === "video"),
+    () => sortedFiles.filter((f) => isPreviewable(f.type)),
     [sortedFiles]
   );
   const mediaIndex = mediaEntry
@@ -255,29 +360,9 @@ export function BrowsePage() {
 
   return (
     <UploadZone onFiles={handleUploadFiles}>
-      <div className="flex h-full">
+      <div className="flex h-full min-h-0">
         {/* Main content */}
-        <div className="flex-1 min-w-0 p-4">
-          {/* Breadcrumbs */}
-          <div className="mb-4">
-            <Breadcrumbs path={path} />
-          </div>
-
-          {/* Toolbar */}
-          <div className="mb-4">
-            <Toolbar
-              viewMode={viewMode}
-              onViewModeChange={handleViewModeChange}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={handleSortChange}
-              onNewFolder={() => setNewFolderOpen(true)}
-              onNewFile={() => setNewFileOpen(true)}
-              onUpload={() => fileInputRef.current?.click()}
-              onPaste={handlePaste}
-            />
-          </div>
-
+        <div className="flex min-w-0 flex-1 flex-col p-4">
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -290,47 +375,66 @@ export function BrowsePage() {
             }}
           />
 
-          {/* Content */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-24">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="sticky top-0 z-20 -mx-4 mb-4 border-b bg-background/95 px-4 pb-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <div className="mb-4">
+                <Breadcrumbs path={path} />
+              </div>
+              <Toolbar
+                viewMode={viewMode}
+                onViewModeChange={handleViewModeChange}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSortChange={handleSortChange}
+                onNewFolder={() => setNewFolderOpen(true)}
+                onNewFile={() => setNewFileOpen(true)}
+                onUpload={() => fileInputRef.current?.click()}
+                onPaste={handlePaste}
+              />
             </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-24 text-sm text-muted-foreground">
-              <p>Failed to load files</p>
-              <p className="text-xs mt-1">
-                {error instanceof Error ? error.message : "Unknown error"}
-              </p>
-            </div>
-          ) : viewMode === "grid" ? (
-            <FileGrid
-              dirs={sortedDirs}
-              files={sortedFiles}
-              onNavigate={handleNavigate}
-              onSelect={handleFileSelect}
-              selectedPaths={selectedPaths}
-              onRename={setRenameTarget}
-              onDelete={setDeleteTarget}
-              onMove={setMoveTarget}
-              onInfo={setInfoEntry}
-              onCopy={handleCopy}
-              onCut={handleCut}
-            />
-          ) : (
-            <FileList
-              dirs={sortedDirs}
-              files={sortedFiles}
-              onNavigate={handleNavigate}
-              onSelect={handleFileSelect}
-              selectedPaths={selectedPaths}
-              onRename={setRenameTarget}
-              onDelete={setDeleteTarget}
-              onMove={setMoveTarget}
-              onInfo={setInfoEntry}
-              onCopy={handleCopy}
-              onCut={handleCut}
-            />
-          )}
+
+            {/* Content */}
+            {isLoading ? (
+              <div className="flex min-h-[40vh] items-center justify-center py-24">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : error ? (
+              <div className="flex min-h-[40vh] flex-col items-center justify-center py-24 text-sm text-muted-foreground">
+                <p>Failed to load files</p>
+                <p className="mt-1 text-xs">
+                  {error instanceof Error ? error.message : "Unknown error"}
+                </p>
+              </div>
+            ) : viewMode === "grid" ? (
+              <FileGrid
+                dirs={sortedDirs}
+                files={sortedFiles}
+                onEntryClick={handleEntryClick}
+                onToggleSelect={handleToggleSelect}
+                selectedPaths={selectedPaths}
+                onRename={setRenameTarget}
+                onDelete={setDeleteTarget}
+                onMove={setMoveTarget}
+                onInfo={setInfoEntry}
+                onCopy={handleCopy}
+                onCut={handleCut}
+              />
+            ) : (
+              <FileList
+                dirs={sortedDirs}
+                files={sortedFiles}
+                onEntryClick={handleEntryClick}
+                onToggleSelect={handleToggleSelect}
+                selectedPaths={selectedPaths}
+                onRename={setRenameTarget}
+                onDelete={setDeleteTarget}
+                onMove={setMoveTarget}
+                onInfo={setInfoEntry}
+                onCopy={handleCopy}
+                onCut={handleCut}
+              />
+            )}
+          </div>
         </div>
 
         {/* Info Sidebar */}
@@ -344,9 +448,14 @@ export function BrowsePage() {
       </div>
 
       {/* Media Preview */}
-      {mediaEntry?.type === "image" && (
+      {(mediaEntry?.type === "image" || mediaEntry?.type === "raw-image") && (
         <ImageLightbox
           entry={mediaEntry}
+          previewSrc={
+            mediaEntry.type === "raw-image"
+              ? thumbnailUrl(mediaEntry.href)
+              : undefined
+          }
           onClose={() => setMediaEntry(null)}
           hasPrev={mediaIndex > 0}
           hasNext={mediaIndex < mediaFiles.length - 1}

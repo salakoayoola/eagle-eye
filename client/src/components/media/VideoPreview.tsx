@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { fileUrl, thumbnailUrl } from "@/lib/copyparty";
+import { FileVideo } from "lucide-react";
 
 interface VideoPreviewProps {
   href: string;
@@ -68,12 +69,20 @@ export function VideoPreview({ href, name, className }: VideoPreviewProps) {
           className="h-full w-full object-cover"
         />
       ) : (
-        <img
-          src={thumbnailUrl(href)}
-          alt={name}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
+        <div className="relative h-full w-full">
+          <div className="absolute inset-0 flex items-center justify-center bg-muted/40">
+            <FileVideo className="h-8 w-8 text-muted-foreground/50" />
+          </div>
+          <img
+            src={thumbnailUrl(href)}
+            alt={name}
+            className="relative z-10 h-full w-full object-cover"
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        </div>
       )}
     </div>
   );

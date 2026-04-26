@@ -1,11 +1,13 @@
-import { Folder } from "lucide-react";
+import { Folder, Circle, CircleCheckBig } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CopyPartyEntry } from "@/lib/copyparty";
 import { FileContextMenu } from "./FileContextMenu";
+import type { MouseEvent } from "react";
 
 interface FolderCardProps {
   entry: CopyPartyEntry;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLDivElement>) => void;
+  onToggleSelect?: (event: MouseEvent<HTMLButtonElement>) => void;
   selected?: boolean;
   onRename?: () => void;
   onDelete?: () => void;
@@ -18,6 +20,7 @@ interface FolderCardProps {
 export function FolderCard({
   entry,
   onClick,
+  onToggleSelect,
   selected,
   onRename,
   onDelete,
@@ -30,13 +33,33 @@ export function FolderCard({
     <div
       onClick={onClick}
       className={cn(
-        "group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition-all cursor-pointer",
-        "hover:shadow-md hover:border-primary/30",
+        "group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-card text-left transition-all",
+        "hover:border-primary/30 hover:shadow-md",
         selected && "ring-2 ring-primary border-primary/50"
       )}
     >
       {/* Folder preview area */}
       <div className="relative flex aspect-[4/3] items-center justify-center bg-muted/30">
+        {onToggleSelect && (
+          <button
+            type="button"
+            className={cn(
+              "absolute right-2 top-2 z-30 rounded-full bg-background/85 p-0.5 text-muted-foreground shadow-sm transition-opacity",
+              selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            )}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleSelect(event);
+            }}
+            aria-label={selected ? "Deselect folder" : "Select folder"}
+          >
+            {selected ? (
+              <CircleCheckBig className="h-4 w-4 text-primary" />
+            ) : (
+              <Circle className="h-4 w-4" />
+            )}
+          </button>
+        )}
         <Folder className="h-12 w-12 text-primary/60 fill-primary/10" />
       </div>
 

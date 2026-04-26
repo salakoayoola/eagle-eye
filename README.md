@@ -10,6 +10,8 @@ A web-based file manager for personal NAS, powered by [CopyParty](https://github
 - **Video hover preview** — 500ms delay, muted loop on hover
 - **Image lightbox** with keyboard navigation (arrow keys, Escape)
 - **Video player** overlay with streaming playback
+- **RAW thumbnail support** for camera files (including `.NEF`) when backend tools are installed
+- **Graceful RAW video fallback** for proprietary codecs like `.R3D` (icon + hint)
 - **Drive management** — mount/eject removable storage (SD cards, USB drives)
 - **Drag & drop upload** with progress
 - **File operations** — create folders, text files, rename, delete
@@ -47,6 +49,12 @@ CopyParty                        ← File operations backend
 - **Companion API:** Hono on Node.js — thin layer for drive mount/unmount/eject
 - **File backend:** CopyParty handles all file operations (list, upload, download, rename, delete, move, mkdir, search, thumbnails, streaming)
 - **Deployment:** Docker Compose with nginx reverse proxy
+
+## Media Preview Notes
+
+- `.mp4`: thumbnail + hover playback works via CopyParty/ffmpeg.
+- `.nef` (and other RAW images): Eagle Eye now requests thumbnails for RAW image types. The bundled CopyParty image includes `exiftool`, `libraw-tools`, and `imagemagick` for better RAW thumbnail coverage.
+- `.r3d` / `.braw` / `.ari`: these codecs need proprietary SDKs; Eagle Eye falls back to icon preview and metadata when decoding is unavailable.
 
 ## Configuration
 

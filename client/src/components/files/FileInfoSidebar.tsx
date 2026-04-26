@@ -19,6 +19,10 @@ import { Separator } from "@/components/ui/separator";
 import {
   type CopyPartyEntry,
   fileUrl,
+  getFileExtension,
+  isPreviewable,
+  isProprietaryCinemaVideo,
+  supportsThumbnails,
   thumbnailUrl,
   formatBytes,
 } from "@/lib/copyparty";
@@ -57,15 +61,16 @@ const typeIcons: Record<string, React.ReactNode> = {
   file: <File className="h-6 w-6" />,
 };
 
-function getExtension(name: string): string {
-  const parts = name.split(".");
-  return parts.length > 1 ? parts.pop()!.toUpperCase() : "";
-}
-
 export function FileInfoSidebar({ entry, onClose, onOpen }: FileInfoSidebarProps) {
   const isDir = entry.type === "d";
-  const ext = getExtension(entry.name);
-  const hasPreview = entry.type === "image" || entry.type === "video";
+  const ext = getFileExtension(entry.name);
+  const hasPreview = isPreviewable(entry.type);
+  const showThumbnail = supportsThumbnails(entry.type);
+  const isProprietaryRawVideo =
+    entry.type === "raw-video" && isProprietaryCinemaVideo(entry.name);
+  const typeLabel = isProprietaryRawVideo
+    ? "RAW Video (Proprietary Codec)"
+    : (typeLabels[entry.type] || "File");
 
   const handleDownload = useCallback(() => {
     const a = document.createElement("a");
@@ -75,7 +80,7 @@ export function FileInfoSidebar({ entry, onClose, onOpen }: FileInfoSidebarProps
   }, [entry]);
 
   return (
-    <div className="flex h-full w-80 flex-col border-l bg-card">
+    <div className="sticky top-0 flex h-full w-80 flex-col border-l bg-card">
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <h3 className="text-sm font-semibold">Info</h3>
@@ -86,18 +91,32 @@ export function FileInfoSidebar({ entry, onClose, onOpen }: FileInfoSidebarProps
 
       {/* Preview */}
       <div className="flex aspect-square items-center justify-center bg-muted/30 overflow-hidden">
-        {entry.type === "image" ? (
-          <img
-            src={thumbnailUrl(entry.href)}
-            alt={entry.name}
-            className="h-full w-full object-contain"
-          />
+        {showThumbnail ? (
+          <div className="relative h-full w-full">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+              {typeIcons[entry.type] || typeIcons.file}
+              {isProprietaryRawVideo && (
+                <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium">
+                  R3D/BRAW/ARI need proprietary decoder
+                </span>
+              )}
+            </div>
+            <img
+              src={thumbnailUrl(entry.href)}
+              alt={entry.name}
+              className="relative z-10 h-full w-full object-contain"
+              loading="lazy"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
             {typeIcons[entry.type] || typeIcons.file}
             {ext && (
               <span className="rounded bg-muted px-2 py-0.5 text-xs font-mono font-medium">
-                .{ext.toLowerCase()}
+                .{ext}
               </span>
             )}
           </div>
@@ -108,8 +127,8 @@ export function FileInfoSidebar({ entry, onClose, onOpen }: FileInfoSidebarProps
       <div className="flex-1 overflow-auto p-4">
         <h4 className="mb-1 text-sm font-semibold break-all">{entry.name}</h4>
         <p className="mb-4 text-xs text-muted-foreground">
-          {typeLabels[entry.type] || "File"}
-          {ext && ` (.${ext.toLowerCase()})`}
+          {typeLabel}
+          {ext && ` (.${ext})`}
         </p>
 
         <Separator className="my-3" />
