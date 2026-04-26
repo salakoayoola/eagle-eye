@@ -5,7 +5,6 @@ import { createReadStream } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { stream } from "hono/streaming";
-import { getMimeType } from "hono/utils/mime";
 import mime from "mime";
 
 const exec = promisify(execFile);
@@ -21,15 +20,20 @@ const ROOT_PATHS: Record<string, string> = {
  */
 function resolvePath(path: string): string {
   const parts = path.split("/").filter(Boolean);
-  if (parts.length === 0) return "/";
+  if (parts.length === 0) {
+    throw new Error("Virtual root cannot be resolved to a physical path");
+  }
 
-  const root = ROOT_PATHS[parts[0]];
-  if (!root) throw new Error("Invalid root path");
-
-  const resolved = resolve(root, ...parts.slice(1));
+  const rootKey = parts[0];
+  const rootPhysicalPath = ROOT_PATHS[rootKey];
   
-  // Security check: ensure the resolved path is still under one of our roots
-  if (!resolved.startsWith("/raid") && !resolved.startsWith("/media")) {
+  if (!rootPhysicalPath) {
+    throw new Error(`Invalid root: ${rootKey}`);
+  }
+
+  const resolved = resolve(rootPhysicalPath, ...parts.slice(1));
+  
+  if (!resolved.startsWith(rootPhysicalPath)) {
     throw new Error("Access denied: path out of bounds");
   }
   
@@ -37,10 +41,16 @@ function resolvePath(path: string): string {
 }
 
 // List directory
-fs.get("/ls/*", async (c) => {
-  const virtualPath = c.req.param("0") || "";
+fs.get("/ls/:path{.+$}", async (c) => {
+  const virtualPath = c.req.param("path") || "";
+  console.log(`Listing directory: "${virtualPath}"`);
+  
+  const parts = virtualPath.split("/").filter(Boolean);
+
   try {
     const realPath = resolvePath(virtualPath);
+    console.log(`Resolved to real path: "${realPath}"`);
+    
     const entries = await readdir(realPath, { withFileTypes: true });
     
     const dirs = [];
@@ -70,13 +80,27 @@ fs.get("/ls/*", async (c) => {
 
     return c.json({ dirs, files });
   } catch (err) {
+    console.error(`Failed to list ${virtualPath}:`, err);
     return c.json({ error: err instanceof Error ? err.message : "Failed to list directory" }, 500);
   }
 });
 
+// Explicit handle for empty path (virtual root)
+fs.get("/ls", async (c) => {
+  console.log('Listing virtual root');
+  const dirs = Object.keys(ROOT_PATHS).map(key => ({
+    name: key,
+    href: key,
+    sz: 0,
+    ts: 0,
+    type: "d",
+  }));
+  return c.json({ dirs, files: [] });
+});
+
 // Download/Stream file
-fs.get("/raw/*", async (c) => {
-  const virtualPath = c.req.param("0") || "";
+fs.get("/raw/:path{.+$}", async (c) => {
+  const virtualPath = c.req.param("path") || "";
   try {
     const realPath = resolvePath(virtualPath);
     const s = await stat(realPath);
@@ -100,12 +124,12 @@ fs.get("/raw/*", async (c) => {
 });
 
 // Upload file
-fs.post("/upload/*", async (c) => {
-  const virtualDir = c.req.param("0") || "";
+fs.post("/upload/:path{.+$}", async (c) => {
+  const virtualDir = c.req.param("path") || "";
   try {
     const body = await c.req.parseBody();
     const file = body["f"] as File;
-    const relativePath = body["path"] as string; // Optional path within upload target
+    const relativePath = body["path"] as string;
 
     if (!file) return c.text("No file uploaded", 400);
 
@@ -114,8 +138,8 @@ fs.post("/upload/*", async (c) => {
       ? resolve(targetDir, relativePath)
       : join(targetDir, file.name);
 
-    // Security check for finalDest
-    if (!finalDest.startsWith("/raid") && !finalDest.startsWith("/media")) {
+    const rootKey = virtualDir.split("/").filter(Boolean)[0];
+    if (!finalDest.startsWith(ROOT_PATHS[rootKey])) {
       throw new Error("Access denied");
     }
 
@@ -130,8 +154,8 @@ fs.post("/upload/*", async (c) => {
 });
 
 // Create directory
-fs.post("/mkdir/*", async (c) => {
-  const virtualParent = c.req.param("0") || "";
+fs.post("/mkdir/:path{.+$}", async (c) => {
+  const virtualParent = c.req.param("path") || "";
   try {
     const body = await c.req.parseBody();
     const name = body["name"] as string;
@@ -148,8 +172,8 @@ fs.post("/mkdir/*", async (c) => {
 });
 
 // Delete
-fs.post("/delete/*", async (c) => {
-  const virtualPath = c.req.param("0") || "";
+fs.post("/delete/:path{.+$}", async (c) => {
+  const virtualPath = c.req.param("path") || "";
   try {
     const realPath = resolvePath(virtualPath);
     await rm(realPath, { recursive: true, force: true });
@@ -160,8 +184,8 @@ fs.post("/delete/*", async (c) => {
 });
 
 // Move / Rename
-fs.post("/move/*", async (c) => {
-  const virtualSrc = c.req.param("0") || "";
+fs.post("/move/:path{.+$}", async (c) => {
+  const virtualSrc = c.req.param("path") || "";
   try {
     const body = await c.req.parseBody();
     const virtualDest = body["dest"] as string;
@@ -180,8 +204,8 @@ fs.post("/move/*", async (c) => {
 });
 
 // Copy
-fs.post("/copy/*", async (c) => {
-  const virtualSrc = c.req.param("0") || "";
+fs.post("/copy/:path{.+$}", async (c) => {
+  const virtualSrc = c.req.param("path") || "";
   try {
     const body = await c.req.parseBody();
     const virtualDest = body["dest"] as string;
@@ -191,8 +215,6 @@ fs.post("/copy/*", async (c) => {
     const realDest = resolvePath(virtualDest);
 
     await mkdir(dirname(realDest), { recursive: true });
-    
-    // Use native cp for recursive and efficient copy
     await exec("cp", ["-r", realSrc, realDest]);
     
     return c.json({ success: true });

@@ -4,7 +4,7 @@ services:
     build: ./server
     environment:
       - PORT=3924
-      - MEDIA_MOUNT_DIR=${MEDIA_MOUNT_DIR:-/mnt/media}
+      - MEDIA_MOUNT_DIR=/media
     ports:
       - "${COMPANION_PORT:-3924}:3924"
     privileged: true
@@ -14,7 +14,7 @@ services:
       - /sys:/sys:ro
       - /run/udev:/run/udev:ro
       - /export/Eagle-Eye:/raid
-      - ${MEDIA_MOUNT_DIR:-/mnt/media}:${MEDIA_MOUNT_DIR:-/mnt/media}:rshared
+      - ${MEDIA_MOUNT_DIR:-/mnt/media}:/media:rshared
     restart: unless-stopped
 
   # Frontend — nginx serving React app + reverse proxy
