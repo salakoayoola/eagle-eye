@@ -88,9 +88,9 @@ export function fileUrl(href: string): string {
   return `${BASE}/raw/${href}`;
 }
 
-/** Get thumbnail URL (Using raw for now as we removed CopyParty) */
+/** Get thumbnail URL */
 export function thumbnailUrl(href: string): string {
-  return `${BASE}/raw/${href}`;
+  return `${BASE}/thumbnail/${href}`;
 }
 
 /** List directory contents */

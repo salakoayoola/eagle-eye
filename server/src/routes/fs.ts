@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { readdir, stat, mkdir, rm, rename, writeFile } from "node:fs/promises";
 import { join, resolve, basename, dirname } from "node:path";
-import { createReadStream } from "node:fs";
-import { execFile } from "node:child_process";
+import { createReadStream, existsSync } from "node:fs";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { stream } from "hono/streaming";
 import mime from "mime";
@@ -43,14 +43,10 @@ function resolvePath(path: string): string {
 // List directory
 fs.get("/ls/:path{.+$}", async (c) => {
   const virtualPath = c.req.param("path") || "";
-  console.log(`Listing directory: "${virtualPath}"`);
-  
   const parts = virtualPath.split("/").filter(Boolean);
 
   try {
     const realPath = resolvePath(virtualPath);
-    console.log(`Resolved to real path: "${realPath}"`);
-    
     const entries = await readdir(realPath, { withFileTypes: true });
     
     const dirs = [];
@@ -80,14 +76,12 @@ fs.get("/ls/:path{.+$}", async (c) => {
 
     return c.json({ dirs, files });
   } catch (err) {
-    console.error(`Failed to list ${virtualPath}:`, err);
     return c.json({ error: err instanceof Error ? err.message : "Failed to list directory" }, 500);
   }
 });
 
 // Explicit handle for empty path (virtual root)
 fs.get("/ls", async (c) => {
-  console.log('Listing virtual root');
   const dirs = Object.keys(ROOT_PATHS).map(key => ({
     name: key,
     href: key,
@@ -120,6 +114,61 @@ fs.get("/raw/:path{.+$}", async (c) => {
     });
   } catch (err) {
     return c.text(err instanceof Error ? err.message : "File not found", 404);
+  }
+});
+
+// Thumbnail generation (RAW and Video)
+fs.get("/thumbnail/:path{.+$}", async (c) => {
+  const virtualPath = c.req.param("path") || "";
+  try {
+    const realPath = resolvePath(virtualPath);
+    const ext = basename(realPath).split(".").pop()?.toLowerCase();
+    
+    const isRaw = ["nef", "cr2", "arw", "dng", "orf", "raf", "rw2", "pef", "srw", "x3f", "iiq"].includes(ext || "");
+    const isVideo = ["mp4", "webm", "ogg", "mov", "mkv", "avi", "wmv", "r3d", "braw", "mxf"].includes(ext || "");
+
+    if (isRaw) {
+      // Use exiftool to extract preview image
+      return stream(c, async (stream) => {
+        const proc = spawn("exiftool", ["-b", "-PreviewImage", realPath]);
+        
+        for await (const chunk of proc.stdout) {
+          await stream.write(chunk);
+        }
+        
+        // Fallback to JpgFromRaw if PreviewImage is not available
+        if (proc.exitCode !== 0) {
+           const proc2 = spawn("exiftool", ["-b", "-JpgFromRaw", realPath]);
+           for await (const chunk of proc2.stdout) {
+             await stream.write(chunk);
+           }
+        }
+      });
+    }
+
+    if (isVideo) {
+      // Use ffmpeg to generate a thumbnail from the first second
+      return stream(c, async (stream) => {
+        const proc = spawn("ffmpeg", [
+          "-ss", "1",
+          "-i", realPath,
+          "-vframes", "1",
+          "-f", "image2",
+          "-c:v", "mjpeg",
+          "pipe:1"
+        ]);
+        
+        for await (const chunk of proc.stdout) {
+          await stream.write(chunk);
+        }
+      });
+    }
+
+    // Default: return raw for normal images
+    return c.redirect(`/api/fs/raw/${virtualPath}`);
+    
+  } catch (err) {
+    return c.text("Thumbnail generation failed", 500);
   }
 });
 
