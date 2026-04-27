@@ -9,6 +9,8 @@ services:
       - "${COMPANION_PORT:-3924}:3924"
     privileged: true
     user: "1000:100"
+    group_add:
+      - "6"
     volumes:
       - /dev:/dev:ro
       - /sys:/sys:ro
