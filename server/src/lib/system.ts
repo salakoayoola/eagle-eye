@@ -27,26 +27,6 @@ function validateDevice(device: string): string {
 }
 
 /**
- * Probe device metadata (label, fstype) using blkid
- * Fallback for when lsblk fails to see metadata inside container
- */
-async function getDeviceMetadata(device: string): Promise<{ label: string; fstype: string }> {
-  try {
-    const { stdout } = await exec("/sbin/blkid", [device]);
-    // Format: /dev/sda: LABEL="EAGLE-EYE" UUID="..." TYPE="exfat"
-    const labelMatch = stdout.match(/LABEL="([^"]+)"/);
-    const typeMatch = stdout.match(/TYPE="([^"]+)"/);
-    
-    return {
-      label: labelMatch ? labelMatch[1] : "",
-      fstype: typeMatch ? typeMatch[1] : "",
-    };
-  } catch {
-    return { label: "", fstype: "" };
-  }
-}
-
-/**
  * Determine whether a partition is an external/removable storage device.
  */
 function isExternalDevice(
@@ -57,7 +37,6 @@ function isExternalDevice(
   const partName: string = partition.name || "";
   const fstype: string = partition.fstype || "";
   const mountpoint: string = partition.mountpoint || "";
-  const isRemovable: boolean = parentDisk.rm || partition.rm || false;
 
   // Skip boot SD card (mmcblk0 and its partitions)
   if (parentName.startsWith("mmcblk0")) return false;
@@ -83,12 +62,10 @@ function isExternalDevice(
     }
   }
 
-  // Allow if it's removable OR already mounted in /media OR has a known fstype
-  if (isRemovable || mountpoint.startsWith(MEDIA_DIR) || fstype) {
-    return true;
-  }
+  // Must have a usable filesystem
+  if (!fstype) return false;
 
-  return false;
+  return true;
 }
 
 export async function listDrives(): Promise<Drive[]> {
@@ -110,19 +87,8 @@ export async function listDrives(): Promise<Drive[]> {
         if (part.type !== "part") continue;
         if (!isExternalDevice(dev, part)) continue;
 
-        const device = `/dev/${part.name}`;
         const mountpoint = part.mountpoint || "";
         const mounted = !!mountpoint;
-
-        let label = part.label || part.name;
-        let fstype = part.fstype || "";
-
-        // Probe metadata if missing (common in containers)
-        if (!label || !fstype) {
-          const meta = await getDeviceMetadata(device);
-          if (meta.label) label = meta.label;
-          if (meta.fstype) fstype = meta.fstype;
-        }
 
         let used = "0";
         let available = "0";
@@ -145,10 +111,10 @@ export async function listDrives(): Promise<Drive[]> {
         }
 
         drives.push({
-          label,
-          device,
+          label: part.label || part.name,
+          device: `/dev/${part.name}`,
           mountpoint,
-          fstype,
+          fstype: part.fstype,
           size: part.size || "0",
           used,
           available,
@@ -159,24 +125,14 @@ export async function listDrives(): Promise<Drive[]> {
       // Also check if the disk itself (no partitions) is an external device
       if (children.length === 0 && dev.type === "disk") {
         if (isExternalDevice(dev, dev)) {
-          const device = `/dev/${dev.name}`;
           const mountpoint = dev.mountpoint || "";
           const mounted = !!mountpoint;
 
-          let label = dev.label || dev.name;
-          let fstype = dev.fstype || "";
-
-          if (!label || !fstype) {
-            const meta = await getDeviceMetadata(device);
-            if (meta.label) label = meta.label;
-            if (meta.fstype) fstype = meta.fstype;
-          }
-
           drives.push({
-            label,
-            device,
+            label: dev.label || dev.name,
+            device: `/dev/${dev.name}`,
             mountpoint,
-            fstype,
+            fstype: dev.fstype,
             size: dev.size || "0",
             used: "0",
             available: "0",
@@ -219,21 +175,14 @@ export async function mountDrive(
 ): Promise<{ success: boolean; mountpoint: string }> {
   const clean = validateDevice(device);
 
-  // Get filesystem label and type (probe if lsblk returns empty)
-  let { stdout: labelOut } = await exec("lsblk", ["-no", "LABEL", clean]);
-  let { stdout: fstypeOut } = await exec("lsblk", ["-no", "FSTYPE", clean]);
+  // Get filesystem label and type
+  const { stdout: labelOut } = await exec("lsblk", ["-no", "LABEL", clean]);
+  const { stdout: fstypeOut } = await exec("lsblk", ["-no", "FSTYPE", clean]);
   
-  let label = labelOut.trim();
-  let fstype = fstypeOut.trim();
+  const label = labelOut.trim().replace(/\s+/g, "_") || clean.replace(/^\/dev\//, "");
+  const fstype = fstypeOut.trim();
 
-  if (!label || !fstype) {
-    const meta = await getDeviceMetadata(clean);
-    if (!label) label = meta.label;
-    if (!fstype) fstype = meta.fstype;
-  }
-
-  const finalLabel = label.replace(/\s+/g, "_") || clean.replace(/^\/dev\//, "");
-  const mountpoint = `${MEDIA_DIR}/${finalLabel}`;
+  const mountpoint = `${MEDIA_DIR}/${label}`;
   await mkdir(mountpoint, { recursive: true });
 
   // Mount with appropriate options per filesystem
