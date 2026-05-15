@@ -16,6 +16,7 @@ import { Link } from "react-router";
 import { MobileSidebar } from "./MobileSidebar";
 import type { Drive } from "@/lib/companion";
 import { useAuth } from "@/context/auth";
+import { toast } from "sonner";
 
 export function TopBar() {
   const { theme, setTheme } = useTheme();
@@ -56,7 +57,19 @@ export function TopBar() {
             key={drive.device || drive.label}
             drive={drive}
             onEject={() => setEjectTarget(drive)}
-            onMount={() => mountMutation.mutate(drive.device)}
+            onMount={() => {
+              if (!drive.device) {
+                toast.error(`Cannot mount ${drive.label}: missing device path`);
+                return;
+              }
+              mountMutation.mutate(drive.device, {
+                onSuccess: () => toast.success(`Mounted ${drive.label}`),
+                onError: (err) =>
+                  toast.error(
+                    `Failed to mount ${drive.label}: ${err instanceof Error ? err.message : "Unknown error"}`
+                  ),
+              });
+            }}
           />
         ))}
       </div>
@@ -127,8 +140,17 @@ export function TopBar() {
           label={ejectTarget.label}
           isLoading={ejectMutation.isPending}
           onConfirm={() => {
-            ejectMutation.mutate(ejectTarget.device || ejectTarget.label, {
-              onSuccess: () => setEjectTarget(null),
+            const identifier =
+              ejectTarget.device || ejectTarget.mountpoint || ejectTarget.label;
+            ejectMutation.mutate(identifier, {
+              onSuccess: () => {
+                toast.success(`Ejected ${ejectTarget.label}`);
+                setEjectTarget(null);
+              },
+              onError: (err) =>
+                toast.error(
+                  `Failed to eject ${ejectTarget.label}: ${err instanceof Error ? err.message : "Unknown error"}`
+                ),
             });
           }}
         />

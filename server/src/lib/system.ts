@@ -17,13 +17,14 @@ export interface Drive {
   mounted: boolean;
 }
 
-// Validate device/label input to prevent command injection
-function validateDevice(device: string): string {
-  const clean = device.replace(/[^a-zA-Z0-9_\-\/\.]/g, "");
-  if (clean !== device || device.includes("..")) {
+// Validate input to prevent command injection
+function validateIdentifier(value: string): string {
+  const trimmed = value.trim();
+  const clean = trimmed.replace(/[^a-zA-Z0-9_\-\/\. ]/g, "");
+  if (!trimmed || clean !== trimmed || trimmed.includes("..")) {
     throw new Error("Invalid device identifier");
   }
-  return clean;
+  return trimmed;
 }
 
 /**
@@ -173,7 +174,10 @@ export async function listDrives(): Promise<Drive[]> {
 export async function mountDrive(
   device: string
 ): Promise<{ success: boolean; mountpoint: string }> {
-  const clean = validateDevice(device);
+  const clean = validateIdentifier(device);
+  if (!clean.startsWith("/dev/")) {
+    throw new Error("Mount requires a /dev device path");
+  }
 
   // Get filesystem label and type
   const { stdout: labelOut } = await exec("lsblk", ["-no", "LABEL", clean]);
@@ -206,16 +210,38 @@ export async function mountDrive(
 }
 
 export async function ejectDrive(
-  device: string
+  identifier: string
 ): Promise<{ success: boolean }> {
-  const clean = validateDevice(device);
+  const clean = validateIdentifier(identifier);
 
-  // Find mountpoint for this device
-  const { stdout: findOut } = await exec("findmnt", ["-n", "-o", "TARGET", clean]);
-  const mountpoint = findOut.trim();
-  if (!mountpoint) {
+  let mountpoint = "";
+  if (clean.startsWith("/dev/")) {
+    const { stdout: findOut } = await exec("findmnt", [
+      "-n",
+      "-o",
+      "TARGET",
+      "--source",
+      clean,
+    ]);
+    mountpoint = findOut.trim();
+  } else if (clean.startsWith("/")) {
+    mountpoint = clean;
+  } else {
+    mountpoint = `${MEDIA_DIR}/${clean.replace(/\s+/g, "_")}`;
+  }
+
+  const { stdout: verifyOut } = await exec("findmnt", [
+    "-n",
+    "-o",
+    "TARGET",
+    "--target",
+    mountpoint,
+  ]).catch(() => ({ stdout: "" }));
+  const resolvedMountpoint = verifyOut.trim();
+  if (!resolvedMountpoint) {
     throw new Error(`${clean} is not mounted`);
   }
+  mountpoint = resolvedMountpoint;
 
   await exec("sync", []);
   await exec("umount", [mountpoint]);

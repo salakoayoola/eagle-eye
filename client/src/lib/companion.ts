@@ -45,12 +45,12 @@ export async function mountDrive(
 }
 
 export async function ejectDrive(
-  device: string
+  identifier: string
 ): Promise<{ success: boolean }> {
   const res = await apiFetch(`${BASE}/eject`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ device }),
+    body: JSON.stringify({ identifier }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

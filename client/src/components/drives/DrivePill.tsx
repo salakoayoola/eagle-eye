@@ -54,7 +54,8 @@ export function DrivePill({ drive, onEject, onMount }: DrivePillProps) {
                   e.stopPropagation();
                   onMount();
                 }}
-                className="ml-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-primary font-medium hover:bg-primary/20 transition-colors"
+                disabled={!drive.device}
+                className="ml-0.5 rounded bg-primary/10 px-1.5 py-0.5 text-primary font-medium hover:bg-primary/20 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Mount
               </button>

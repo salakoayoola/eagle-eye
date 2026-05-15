@@ -29,11 +29,12 @@ drives.post("/mount", async (c) => {
 
 // Safely eject a drive by device path or label
 drives.post("/eject", async (c) => {
-  const { device } = await c.req.json<{ device: string }>();
-  if (!device) return c.json({ error: "device is required" }, 400);
+  const body = await c.req.json<{ device?: string; identifier?: string }>();
+  const identifier = body.identifier || body.device;
+  if (!identifier) return c.json({ error: "identifier is required" }, 400);
 
   try {
-    const result = await ejectDrive(device);
+    const result = await ejectDrive(identifier);
     return c.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Eject failed";
