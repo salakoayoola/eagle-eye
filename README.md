@@ -16,6 +16,7 @@ A high-performance, web-based file manager for personal NAS. Fast, resilient, an
 - **System Task Log (`SYS_TASKS`)** — Real-time tracking of uploads, copies, and moves in a technical log-style interface.
 - **Robust Notifications** — Immediate visual confirmation for all file operations via a dedicated toast system.
 - **Search & Filter** — Rapid search across your entire file library with context-aware results.
+- **Session Authentication** — Login-protected API with `HttpOnly` signed session cookies and login rate limiting.
 - **Secure & Standalone** — Zero-dependency architecture relying on native Node.js and Linux commands.
 
 ## Quick Start
@@ -30,7 +31,8 @@ Or manually:
 
 ```bash
 cp .env.example .env
-# Edit .env — set DATA_DIR to your storage root
+# Edit .env — set strong auth values and session secret
+# openssl rand -base64 48
 docker compose up -d
 # Open http://localhost:8080
 ```
@@ -61,6 +63,12 @@ Copy `.env.example` to `.env` and adjust:
 | `EAGLE_EYE_PORT` | `8080` | Web interface port |
 | `COMPANION_PORT` | `3924` | Unified Backend API port |
 | `MEDIA_MOUNT_DIR` | `/mnt/media` | Host mount point for removable drives |
+| `EAGLE_EYE_AUTH_USER` | `admin` | Login username (required) |
+| `EAGLE_EYE_AUTH_PASSWORD` | `change-me-now` | Login password (required, change immediately) |
+| `EAGLE_EYE_SESSION_SECRET` | - | Long random secret used to sign session cookies (required) |
+| `EAGLE_EYE_SESSION_TTL_HOURS` | `12` | Session lifetime in hours |
+| `EAGLE_EYE_SECURE_COOKIE` | `false` | Set to `true` when served over HTTPS |
+| `EAGLE_EYE_ALLOWED_ORIGINS` | `http://localhost:8080,http://127.0.0.1:8080` | Allowed CORS origins |
 
 ## Development
 

@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Search, File, Folder, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api";
 
 const BASE = import.meta.env.VITE_COPYPARTY_URL || "/api/fs";
 
@@ -20,7 +21,7 @@ interface SearchResult {
 
 async function searchFiles(query: string): Promise<SearchResult[]> {
   if (!query.trim()) return [];
-  const res = await fetch(`${BASE}/?search=${encodeURIComponent(query)}`);
+  const res = await apiFetch(`${BASE}/?search=${encodeURIComponent(query)}`);
   if (!res.ok) return [];
   const data = await res.json();
   // CopyParty search returns results in varying formats

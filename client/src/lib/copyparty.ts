@@ -2,8 +2,14 @@
  * Eagle Eye API client.
  * In production, nginx proxies /api/fs/* → Node.js server.
  */
+import { apiFetch } from "@/lib/api";
 
 const BASE = "/api/fs";
+const RETRYABLE_COPY_STATUSES = new Set([502, 503, 504]);
+const COPY_MAX_ATTEMPTS = 3;
+const COPY_RETRY_BASE_DELAY_MS = 1500;
+const COPY_APPEARANCE_TIMEOUT_MS = 15000;
+const COPY_APPEARANCE_POLL_MS = 1500;
 
 export interface CopyPartyEntry {
   name: string;
@@ -17,6 +23,41 @@ export interface CopyPartyEntry {
 export interface CopyPartyListing {
   dirs: CopyPartyEntry[];
   files: CopyPartyEntry[];
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function readApiError(response: Response): Promise<string> {
+  const clone = response.clone();
+  const jsonError = await clone
+    .json()
+    .then((data) => data?.error as string | undefined)
+    .catch(() => undefined);
+  if (jsonError) return jsonError;
+
+  const text = await response.text().catch(() => "");
+  return text.trim() || response.statusText;
+}
+
+async function destinationHasEntry(destDir: string, name: string): Promise<boolean> {
+  const listing = await listDirectory(destDir);
+  return [...listing.dirs, ...listing.files].some((entry) => entry.name === name);
+}
+
+async function waitForCopyAppearance(
+  destDir: string,
+  name: string,
+  startedAt: number
+): Promise<boolean> {
+  while (Date.now() - startedAt < COPY_APPEARANCE_TIMEOUT_MS) {
+    if (await destinationHasEntry(destDir, name).catch(() => false)) {
+      return true;
+    }
+    await sleep(COPY_APPEARANCE_POLL_MS);
+  }
+  return false;
 }
 
 /** Guess if a file is an image, video, etc based on extension */
@@ -96,7 +137,7 @@ export function thumbnailUrl(href: string): string {
 /** List directory contents */
 export async function listDirectory(path: string): Promise<CopyPartyListing> {
   const cleanPath = path.replace(/^\/+|\/+$/g, "");
-  const res = await fetch(`${BASE}/ls/${cleanPath}`);
+  const res = await apiFetch(`${BASE}/ls/${cleanPath}`);
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: "Unknown error" }));
     throw new Error(error.error || `Failed to list directory: ${res.statusText}`);
@@ -134,6 +175,7 @@ export async function uploadFile(
   
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    xhr.withCredentials = true;
     xhr.open("POST", `${BASE}/upload/${cleanDirPath}`);
 
     if (onProgress) {
@@ -165,7 +207,7 @@ export async function createDirectory(
   const cleanParent = parentPath.replace(/^\/+|\/+$/g, "");
   const form = new FormData();
   form.append("name", name);
-  const res = await fetch(`${BASE}/mkdir/${cleanParent}`, {
+  const res = await apiFetch(`${BASE}/mkdir/${cleanParent}`, {
     method: "POST",
     body: form,
   });
@@ -177,7 +219,7 @@ export async function deleteEntry(
   path: string,
 ): Promise<void> {
   const cleanPath = path.replace(/^\/+|\/+$/g, "");
-  const res = await fetch(`${BASE}/delete/${cleanPath}`, { method: "POST" });
+  const res = await apiFetch(`${BASE}/delete/${cleanPath}`, { method: "POST" });
   if (!res.ok) throw new Error(`Failed to delete: ${res.statusText}`);
 }
 
@@ -193,7 +235,7 @@ export async function renameEntry(
 
   const form = new FormData();
   form.append("dest", destPath);
-  const res = await fetch(`${BASE}/move/${cleanPath}`, {
+  const res = await apiFetch(`${BASE}/move/${cleanPath}`, {
     method: "POST",
     body: form,
   });
@@ -212,7 +254,7 @@ export async function moveEntry(
 
   const form = new FormData();
   form.append("dest", finalDest);
-  const res = await fetch(`${BASE}/move/${cleanSrc}`, {
+  const res = await apiFetch(`${BASE}/move/${cleanSrc}`, {
     method: "POST",
     body: form,
   });
@@ -228,14 +270,44 @@ export async function copyEntry(
   const cleanDestDir = destDir.replace(/^\/+|\/+$/g, "");
   const name = srcPath.split("/").pop() || "";
   const finalDest = cleanDestDir ? `${cleanDestDir}/${name}` : name;
+  const existedBefore = await destinationHasEntry(cleanDestDir, name).catch(() => false);
 
-  const form = new FormData();
-  form.append("dest", finalDest);
-  const res = await fetch(`${BASE}/copy/${cleanSrc}`, {
-    method: "POST",
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Failed to copy: ${res.statusText}`);
+  for (let attempt = 1; attempt <= COPY_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const form = new FormData();
+      form.append("dest", finalDest);
+      const res = await apiFetch(`${BASE}/copy/${cleanSrc}`, {
+        method: "POST",
+        body: form,
+      });
+
+      if (res.ok) return;
+
+      if (RETRYABLE_COPY_STATUSES.has(res.status)) {
+        const appeared = await waitForCopyAppearance(cleanDestDir, name, Date.now());
+        if (appeared && !existedBefore) return;
+      }
+
+      if (RETRYABLE_COPY_STATUSES.has(res.status) && attempt < COPY_MAX_ATTEMPTS) {
+        await sleep(COPY_RETRY_BASE_DELAY_MS * attempt);
+        continue;
+      }
+
+      const error = await readApiError(res);
+      throw new Error(`Failed to copy: ${error}`);
+    } catch (err) {
+      const isNetworkError =
+        err instanceof TypeError ||
+        (err instanceof Error && err.message.toLowerCase().includes("network"));
+
+      if (isNetworkError && attempt < COPY_MAX_ATTEMPTS) {
+        await sleep(COPY_RETRY_BASE_DELAY_MS * attempt);
+        continue;
+      }
+
+      throw err;
+    }
+  }
 }
 
 /** Create a text file with content */
@@ -247,7 +319,7 @@ export async function createTextFile(
   const cleanPath = dirPath.replace(/^\/+|\/+$/g, "");
   const form = new FormData();
   form.append("f", new File([content], name, { type: "text/plain" }));
-  const res = await fetch(`${BASE}/upload/${cleanPath}`, {
+  const res = await apiFetch(`${BASE}/upload/${cleanPath}`, {
     method: "POST",
     body: form,
   });

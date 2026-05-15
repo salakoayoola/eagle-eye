@@ -3,6 +3,7 @@
  * In production, nginx proxies /api/drives → companion API.
  * In dev, VITE_COMPANION_URL can point directly.
  */
+import { apiFetch } from "@/lib/api";
 
 const BASE = import.meta.env.VITE_COMPANION_URL || "/api/drives";
 
@@ -19,7 +20,7 @@ export interface Drive {
 
 export async function listDrives(): Promise<Drive[]> {
   try {
-    const res = await fetch(BASE);
+    const res = await apiFetch(BASE);
     if (!res.ok) return [];
     return await res.json();
   } catch {
@@ -31,7 +32,7 @@ export async function listDrives(): Promise<Drive[]> {
 export async function mountDrive(
   device: string
 ): Promise<{ success: boolean; mountpoint: string }> {
-  const res = await fetch(`${BASE}/mount`, {
+  const res = await apiFetch(`${BASE}/mount`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ device }),
@@ -46,7 +47,7 @@ export async function mountDrive(
 export async function ejectDrive(
   device: string
 ): Promise<{ success: boolean }> {
-  const res = await fetch(`${BASE}/eject`, {
+  const res = await apiFetch(`${BASE}/eject`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ device }),

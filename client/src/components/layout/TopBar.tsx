@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Settings, Sun, Moon, Monitor } from "lucide-react";
+import { Search, Settings, Sun, Moon, Monitor, LogOut } from "lucide-react";
 import { SearchDialog } from "./SearchDialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,9 +15,11 @@ import { EjectDialog } from "@/components/drives/EjectDialog";
 import { Link } from "react-router";
 import { MobileSidebar } from "./MobileSidebar";
 import type { Drive } from "@/lib/companion";
+import { useAuth } from "@/context/auth";
 
 export function TopBar() {
   const { theme, setTheme } = useTheme();
+  const { logout } = useAuth();
   const { data: drives } = useDrives();
   const ejectMutation = useEjectDrive();
   const mountMutation = useMountDrive();
@@ -100,6 +102,18 @@ export function TopBar() {
             <Settings className="h-3.5 w-3.5" />
           </Button>
         </Link>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-sm hover:bg-muted"
+          onClick={() => {
+            void logout();
+          }}
+          title="Sign out"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+        </Button>
       </div>
 
       {/* Search */}
