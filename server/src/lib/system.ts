@@ -11,7 +11,7 @@ export interface Drive {
   device: string;
   mountpoint: string;
   fstype: string;
-  size: string;
+  size: string | number;
   used: string;
   available: string;
   mounted: boolean;
@@ -69,6 +69,49 @@ function isExternalDevice(
   return true;
 }
 
+function parseDfUsage(stdout: string): { used: string; available: string } | null {
+  const lines = stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const dataLine = lines[lines.length - 1];
+  if (!dataLine) return null;
+
+  const match = dataLine.match(/^\S+\s+\d+\s+(\d+)\s+(\d+)\s+\d+%/);
+  if (!match) return null;
+
+  return {
+    used: match[1],
+    available: match[2],
+  };
+}
+
+async function getMountUsage(mountpoint: string): Promise<{ used: string; available: string }> {
+  try {
+    const { stdout } = await exec("df", ["-B1", mountpoint]);
+    const parsed = parseDfUsage(stdout);
+    if (parsed) return parsed;
+  } catch {
+    // fallback below
+  }
+
+  try {
+    const { stdout } = await exec("df", ["-k", mountpoint]);
+    const parsed = parseDfUsage(stdout);
+    if (parsed) {
+      return {
+        used: String(Number(parsed.used) * 1024),
+        available: String(Number(parsed.available) * 1024),
+      };
+    }
+  } catch {
+    // fallback below
+  }
+
+  return { used: "0", available: "0" };
+}
+
 export async function listDrives(): Promise<Drive[]> {
   try {
     const { stdout } = await exec("lsblk", [
@@ -94,21 +137,9 @@ export async function listDrives(): Promise<Drive[]> {
         let used = "0";
         let available = "0";
         if (mounted) {
-          try {
-            const { stdout: dfOut } = await exec("df", [
-              "-B1",
-              "--output=used,avail",
-              mountpoint,
-            ]);
-            const lines = dfOut.trim().split("\n");
-            if (lines.length > 1) {
-              const [u, a] = lines[1].trim().split(/\s+/);
-              used = u;
-              available = a;
-            }
-          } catch {
-            // df may fail, that's ok
-          }
+          const usage = await getMountUsage(mountpoint);
+          used = usage.used;
+          available = usage.available;
         }
 
         drives.push({
