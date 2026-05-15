@@ -19,9 +19,11 @@ export function DrivePill({ drive, onEject, onMount }: DrivePillProps) {
   const availBytes = parseInt(drive.available, 10) || 0;
   const totalBytes = usedBytes + availBytes;
   const usagePct = totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0;
+  const usageUnknown = drive.mounted && totalBytes <= 0;
   const clampedUsagePct = Math.max(0, Math.min(100, usagePct));
+  const isNearFull = clampedUsagePct >= 90;
   const usageFillClass =
-    clampedUsagePct >= 90
+    isNearFull
       ? "bg-destructive/25"
       : clampedUsagePct >= 75
         ? "bg-warning/25"
@@ -41,11 +43,26 @@ export function DrivePill({ drive, onEject, onMount }: DrivePillProps) {
               <div
                 className={cn(
                   "pointer-events-none absolute inset-y-0 left-0 transition-[width] duration-700 ease-out",
+                  isNearFull && "animate-pulse",
                   usageFillClass
                 )}
                 style={{ width: `${clampedUsagePct}%` }}
               />
               <div className="pointer-events-none absolute inset-0 opacity-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+            </>
+          )}
+
+          {usageUnknown && (
+            <>
+              <div className="pointer-events-none absolute inset-0 bg-muted/50" />
+              <div
+                className="pointer-events-none absolute inset-0 opacity-50"
+                style={{
+                  backgroundImage:
+                    "repeating-linear-gradient(135deg, rgba(100,116,139,0.18) 0px, rgba(100,116,139,0.18) 8px, rgba(100,116,139,0.06) 8px, rgba(100,116,139,0.06) 16px)",
+                }}
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-pulse" />
             </>
           )}
 
@@ -62,6 +79,11 @@ export function DrivePill({ drive, onEject, onMount }: DrivePillProps) {
             <span className="relative z-10 text-muted-foreground">
               {formatDriveSize(drive.used)} /{" "}
               {formatDriveSize(String(totalBytes))} ({clampedUsagePct.toFixed(0)}%)
+            </span>
+          )}
+          {usageUnknown && (
+            <span className="relative z-10 text-muted-foreground">
+              Usage unavailable
             </span>
           )}
           {!drive.mounted && (
@@ -100,7 +122,7 @@ export function DrivePill({ drive, onEject, onMount }: DrivePillProps) {
           <div className="text-muted-foreground">{drive.device}</div>
           {drive.mounted ? (
             <div className="text-muted-foreground">
-              {usagePct.toFixed(0)}% used
+              {usageUnknown ? "Usage unavailable" : `${clampedUsagePct.toFixed(0)}% used`}
             </div>
           ) : (
             <div className="text-muted-foreground">
